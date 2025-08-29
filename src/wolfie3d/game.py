@@ -27,6 +27,7 @@ import math
 import sys
 import random
 from typing import TYPE_CHECKING
+from pathlib import Path
 
 import numpy as np
 import pygame
@@ -66,18 +67,84 @@ def try_init_mixer() -> bool:
     """
     try:
         if not pygame.mixer.get_init():
-            pygame.mixer.pre_init(22050, -16, 1, 256)
+            # Higher quality output: 44.1 kHz, 16-bit, mono, low-latency buffer
+            pygame.mixer.pre_init(44100, -16, 1, 256)
             pygame.mixer.init()
         return True
     except Exception:
         return False
 
 
-def make_pickup_sound() -> pygame.mixer.Sound | None:
-    """Generate a short 'pop/ping' sound procedurally. Returns Sound or None if mixer unavailable."""
+def _get_mixer_sr(default: int = 44100) -> int:
+    """Return current mixer sample rate or default."""
+    try:
+        init = pygame.mixer.get_init()
+        if init:
+            return int(init[0])
+    except Exception:
+        pass
+    return default
+
+
+def _find_sounds_dir() -> Path | None:
+    """Locate assets/sounds folder from likely paths."""
+    try:
+        here = Path(__file__).resolve()
+    except Exception:
+        return None
+    candidates = [
+        here.parent / "assets" / "sounds",  # src/wolfie3d/assets/sounds
+        here.parent.parent / "assets" / "sounds",  # src/assets/sounds
+        here.parent.parent.parent / "assets" / "sounds",  # wolfie3d/assets/sounds
+    ]
+    for c in candidates:
+        if c.exists() and c.is_dir():
+            return c
+    return None
+
+
+def load_sound_asset(*filenames: str) -> pygame.mixer.Sound | None:
+    """Try to load the first available sound (wav/ogg) from assets/sounds."""
     if not try_init_mixer():
         return None
-    sr = 22050
+    base = _find_sounds_dir()
+    if not base:
+        return None
+    tried: list[Path] = []
+    for fname in filenames:
+        # Accept given name and auto-switch between .wav/.ogg
+        name = fname
+        p = base / name
+        tried.append(p)
+        if p.exists():
+            try:
+                return pygame.mixer.Sound(p.as_posix())
+            except Exception:
+                continue
+        # try alt extension swap
+        if name.endswith(".wav"):
+            alt = base / (name[:-4] + ".ogg")
+        elif name.endswith(".ogg"):
+            alt = base / (name[:-4] + ".wav")
+        else:
+            alt = None
+        if alt and alt.exists():
+            try:
+                return pygame.mixer.Sound(alt.as_posix())
+            except Exception:
+                continue
+    return None
+
+
+def make_pickup_sound() -> pygame.mixer.Sound | None:
+    """Load pickup sound asset if present, else generate a short ping."""
+    # Prefer asset: pickup.(wav|ogg)
+    snd = load_sound_asset("pickup.wav", "pickup.ogg", "item_pickup.wav", "item_pickup.ogg")
+    if snd is not None:
+        return snd
+    if not try_init_mixer():
+        return None
+    sr = _get_mixer_sr()
     dur = 0.12
     n = int(sr * dur)
     # Exponentially rising blip (simple chirp) with quick decay
@@ -89,17 +156,19 @@ def make_pickup_sound() -> pygame.mixer.Sound | None:
     # convert to 16-bit mono
     arr = np.int16(np.clip(wave, -1.0, 1.0) * 32767)
     try:
-        snd = pygame.mixer.Sound(buffer=arr.tobytes())
-        return snd
+        return pygame.mixer.Sound(buffer=arr.tobytes())
     except Exception:
         return None
 
 
 def make_shot_sound() -> pygame.mixer.Sound | None:
-    """Generate a short shot/pew sound."""
+    """Load shot sound asset if present, else generate a short pew."""
+    snd = load_sound_asset("shot.wav", "shot.ogg")
+    if snd is not None:
+        return snd
     if not try_init_mixer():
         return None
-    sr = 22050
+    sr = _get_mixer_sr()
     dur = 0.08
     n = int(sr * dur)
     t = np.linspace(0, dur, n, endpoint=False)
@@ -119,12 +188,18 @@ def make_shot_sound() -> pygame.mixer.Sound | None:
 
 
 def make_enemy_death_sound() -> pygame.mixer.Sound | None:
-    """Generate a short 'death cry' with pitch drop and grit."""
+    """Prefer enemy death asset, else procedural cry."""
+    snd = load_sound_asset("enemy_death.wav", "enemy_death.ogg")
+    if snd is not None:
+        return snd
     return _make_death_cry_sound(variant="enemy")
 
 
 def make_player_death_sound() -> pygame.mixer.Sound | None:
-    """Longer, deeper 'death cry' for the player."""
+    """Prefer player death asset, else procedural cry."""
+    snd = load_sound_asset("player_death.wav", "player_death.ogg")
+    if snd is not None:
+        return snd
     return _make_death_cry_sound(variant="player")
 
 
@@ -132,7 +207,7 @@ def _make_death_cry_sound(variant: str = "enemy") -> pygame.mixer.Sound | None:
     """Procedural vocal-ish death cry using pitch-drop saw + formant tones + noise + distortion."""
     if not try_init_mixer():
         return None
-    sr = 22050
+    sr = _get_mixer_sr()
     if variant == "player":
         dur = 0.7
         f0_start, f0_end = 240.0, 90.0
@@ -1854,6 +1929,8 @@ def main() -> None:
     shot_snd = make_shot_sound()
     death_snd = make_enemy_death_sound()
     player_death_snd = make_player_death_sound()
+    injured_snd = load_sound_asset("injured.wav", "injured.ogg")
+    injured_snd_cooldown = 0.0
     # ammo HUD cache
     ammo_prev_text: str = ""
     ammo_tex_id: int | None = None
@@ -2076,7 +2153,18 @@ def main() -> None:
             if dx * dx + dy * dy <= (PLAYER_CONTACT_RADIUS * PLAYER_CONTACT_RADIUS):
                 dps_total += PLAYER_CONTACT_DPS
         if dps_total > 0.0 and player_hp > 0.0:
+            # play injured sound with a small cooldown to avoid spam
+            if injured_snd_cooldown <= 0.0:
+                try:
+                    if injured_snd is not None:
+                        injured_snd.play()
+                except Exception:
+                    pass
+                injured_snd_cooldown = 0.4
             player_hp = max(0.0, player_hp - dps_total * dt)
+        # update injured sound cooldown
+        if injured_snd_cooldown > 0.0:
+            injured_snd_cooldown = max(0.0, injured_snd_cooldown - dt)
 
         # Game over trigger
         if (not game_over) and player_hp <= 0.0:
