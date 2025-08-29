@@ -333,6 +333,16 @@ class AmmoBox:
         self.height_param = 0.35
 
 
+class HealthKit:
+    def __init__(self, x: float, y: float, heal_amount: float) -> None:
+        self.x = x
+        self.y = y
+        self.heal_amount = heal_amount  # absolute HP to restore (not fraction)
+        self.alive = True
+        self.radius = 0.3
+        self.height_param = 0.35
+
+
 class PickupPop:
     """Transient visual effect when picking up ammo: quick scale 'pop'."""
     def __init__(self, x: float, y: float) -> None:
@@ -493,14 +503,52 @@ def make_bullet_texture() -> pygame.Surface:
 
 
 def make_ammo_box_texture() -> pygame.Surface:
+    """Procedural ammo pickup: olive box with gold cartridges icon."""
     s = pygame.Surface((64, 64), pygame.SRCALPHA)
-    # box
-    pygame.draw.rect(s, (70, 120, 70, 255), (6, 10, 52, 44), border_radius=6)
-    # plus sign
-    pygame.draw.rect(s, (230, 240, 230, 255), (30, 18, 4, 28))
-    pygame.draw.rect(s, (230, 240, 230, 255), (22, 30, 20, 4))
-    # subtle border
-    pygame.draw.rect(s, (40, 70, 40, 255), (6, 10, 52, 44), width=2, border_radius=6)
+
+    # Box base
+    box_rect = pygame.Rect(6, 10, 52, 44)
+    base = (88, 96, 52, 255)       # olive drab
+    border = (42, 48, 26, 255)
+    stripe = (210, 190, 60, 220)   # yellow-ish band
+    pygame.draw.rect(s, base, box_rect, border_radius=6)
+    # angled stripes for visual cue
+    pygame.draw.polygon(s, stripe, [(10, 16), (24, 16), (48, 44), (34, 44)])
+    pygame.draw.polygon(s, (210, 190, 60, 140), [(18, 16), (32, 16), (56, 44), (42, 44)])
+    # border
+    pygame.draw.rect(s, border, box_rect, width=2, border_radius=6)
+
+    # Draw 3 small cartridges icon in front (over the box)
+    gold = (212, 180, 72, 255)     # brass body
+    gold_shade = (168, 140, 50, 255)
+    tip = (180, 180, 190, 255)     # metal tip
+    base_band = (120, 100, 40, 255)
+
+    def draw_bullet(surf: pygame.Surface, x: int, y: int, h: int = 18, w: int = 7):
+        body_rect = pygame.Rect(x, y, w, h)
+        pygame.draw.rect(surf, gold, body_rect, border_radius=2)
+        # subtle shading on one side
+        pygame.draw.rect(surf, gold_shade, (x + w - 2, y + 1, 2, h - 2), border_radius=1)
+        # tip triangle on top
+        pygame.draw.polygon(surf, tip, [(x + w // 2, y - 5), (x, y + 2), (x + w, y + 2)])
+        # base band
+        pygame.draw.rect(surf, base_band, (x, y + h - 3, w, 3), border_radius=1)
+
+    # Stagger three bullets for a compact icon
+    draw_bullet(s, 20, 22, h=18, w=7)
+    draw_bullet(s, 28, 20, h=20, w=7)
+    draw_bullet(s, 36, 23, h=17, w=7)
+
+    return s
+
+
+def make_health_kit_texture() -> pygame.Surface:
+    s = pygame.Surface((64, 64), pygame.SRCALPHA)
+    # white box with red cross
+    pygame.draw.rect(s, (235, 235, 240, 255), (6, 10, 52, 44), border_radius=6)
+    pygame.draw.rect(s, (180, 25, 25, 255), (30, 18, 4, 28))
+    pygame.draw.rect(s, (180, 25, 25, 255), (22, 30, 20, 4))
+    pygame.draw.rect(s, (180, 180, 190, 255), (6, 10, 52, 44), width=2, border_radius=6)
     return s
 
 
@@ -782,6 +830,19 @@ class GLRenderer:
         # Sprite textures
         self.textures[99] = surface_to_texture(make_bullet_texture())
         self.textures[150] = surface_to_texture(make_ammo_box_texture())
+        self.textures[151] = surface_to_texture(make_health_kit_texture())
+
+        # Optional: override ammo sprite with file if present
+        try:
+            sprites_dir = self._resolve_textures_base().parent / "sprites"
+            for name in ("ammo.png", "ammo_box.png", "ammo_drop.png"):
+                p = sprites_dir / name
+                if p.exists():
+                    self.textures[150] = self._load_texture_file(str(p), 512)
+                    print(f"[GLRenderer] Ammo sprite OK (GL tex id {self.textures[150]}) from {p}")
+                    break
+        except Exception as ex:
+            print(f"[GLRenderer] Ammo sprite: feil ved lasting ({ex}), beholder prosedural")
 
         # Enemy sprites (ID 200, 201, 202): prøv fil, ellers prosedural placeholder
         try:
@@ -1244,6 +1305,51 @@ def build_pickups_batch(pickups: list["AmmoBox"]) -> np.ndarray:
                 depth,
             ]
         )
+    if not verts:
+        return np.zeros((0, 8), dtype=np.float32)
+    return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
+
+def build_healthkits_batch(kits: list["HealthKit"]) -> np.ndarray:
+    verts: list[float] = []
+    for p in kits:
+        if not p.alive:
+            continue
+        spr_x = p.x - player_x
+        spr_y = p.y - player_y
+        inv_det = 1.0 / (plane_x * dir_y - dir_x * plane_y + 1e-9)
+        trans_x = inv_det * (dir_y * spr_x - dir_x * spr_y)
+        trans_y = inv_det * (-plane_y * spr_x + plane_x * spr_y)
+        if trans_y <= 0:
+            continue
+        sprite_screen_x = int((WIDTH / 2) * (1 + trans_x / trans_y))
+        sprite_h = max(1, int(abs(HEIGHT / trans_y) * 0.3))
+        sprite_w = sprite_h
+        v_shift = int((0.5 - p.height_param) * sprite_h)
+        draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_start_x = -sprite_w // 2 + sprite_screen_x
+        draw_end_x = draw_start_x + sprite_w
+        if draw_end_x < 0 or draw_start_x >= WIDTH:
+            continue
+        draw_start_x = max(0, draw_start_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
+
+        x0 = (2.0 * draw_start_x) / WIDTH - 1.0
+        x1 = (2.0 * (draw_end_x + 1)) / WIDTH - 1.0
+        y0 = y_ndc(draw_start_y)
+        y1 = y_ndc(draw_end_y)
+        depth = clamp01(trans_y / FAR_PLANE)
+        r = g = b = 1.0
+        u0, v0, u1, v1 = 0.0, 0.0, 1.0, 1.0
+        verts.extend([
+            x0, y0, u0, v0, r, g, b, depth,
+            x0, y1, u0, v1, r, g, b, depth,
+            x1, y0, u1, v0, r, g, b, depth,
+            x1, y0, u1, v0, r, g, b, depth,
+            x0, y1, u0, v1, r, g, b, depth,
+            x1, y1, u1, v1, r, g, b, depth,
+        ])
     if not verts:
         return np.zeros((0, 8), dtype=np.float32)
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
@@ -1923,6 +2029,7 @@ def main() -> None:
     # Ammo system
     ammo: int = 10
     pickups: list[AmmoBox] = []
+    healthkits: list[HealthKit] = []
     pickup_pops: list[PickupPop] = []
     # sounds (best-effort)
     pickup_snd = make_pickup_sound()
@@ -2111,6 +2218,11 @@ def main() -> None:
                                 lo, hi = 2, 4
                             amt = random.randint(lo, hi)
                             pickups.append(AmmoBox(e.x, e.y, amt))
+                        # 10% chance to drop a health kit
+                        if random.random() < 0.10:
+                            heal_pct = random.uniform(0.20, 0.40)  # 20-40%
+                            heal_abs = heal_pct * PLAYER_MAX_HP
+                            healthkits.append(HealthKit(e.x, e.y, heal_abs))
                     b.alive = False  # kula forbrukes
                     break
         bullets = [b for b in bullets if b.alive]
@@ -2119,7 +2231,7 @@ def main() -> None:
         for e in enemies:
             e.update(dt)
 
-        # Plukk opp ammo ved nærkontakt
+    # Plukk opp ammo ved nærkontakt
         for p in pickups:
             if not p.alive:
                 continue
@@ -2137,6 +2249,23 @@ def main() -> None:
                 except Exception:
                     pass
         pickups = [p for p in pickups if p.alive]
+
+        # Plukk opp health kits ved nærkontakt
+        for hk in healthkits:
+            if not hk.alive:
+                continue
+            dx = hk.x - player_x
+            dy = hk.y - player_y
+            if dx * dx + dy * dy <= (0.5 * 0.5):
+                player_hp = min(float(PLAYER_MAX_HP), player_hp + hk.heal_amount)
+                hk.alive = False
+                # reuse pickup sound
+                try:
+                    if pickup_snd is not None:
+                        pickup_snd.play()
+                except Exception:
+                    pass
+        healthkits = [k for k in healthkits if k.alive]
 
         # Update pickup pops
         for fx in pickup_pops:
@@ -2212,6 +2341,11 @@ def main() -> None:
         pb = build_pickups_batch(pickups)
         if pb.size:
             renderer.draw_arrays(pb, renderer.textures[150], use_tex=True)
+
+        # Health kits
+        hb = build_healthkits_batch(healthkits)
+        if hb.size:
+            renderer.draw_arrays(hb, renderer.textures[151], use_tex=True)
 
         # Pickup pop effects (render using ammo box texture, small & fading)
         pops_batch = build_pickup_pops_batch(pickup_pops)
