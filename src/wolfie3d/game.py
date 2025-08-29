@@ -58,6 +58,120 @@ FAR_PLANE = 100.0
 # Spiller-HP
 PLAYER_MAX_HP = 100
 PLAYER_CONTACT_DPS = 15.0  # skade per sekund per fiende innenfor radius
+
+# ----------- Lyd utils -----------
+def try_init_mixer() -> bool:
+    """Initialize pygame.mixer once; return True if ok.
+    Safe to call multiple times. Avoid crashing on systems without audio.
+    """
+    try:
+        if not pygame.mixer.get_init():
+            pygame.mixer.pre_init(22050, -16, 1, 256)
+            pygame.mixer.init()
+        return True
+    except Exception:
+        return False
+
+
+def make_pickup_sound() -> pygame.mixer.Sound | None:
+    """Generate a short 'pop/ping' sound procedurally. Returns Sound or None if mixer unavailable."""
+    if not try_init_mixer():
+        return None
+    sr = 22050
+    dur = 0.12
+    n = int(sr * dur)
+    # Exponentially rising blip (simple chirp) with quick decay
+    t = np.linspace(0, dur, n, endpoint=False)
+    f0, f1 = 600.0, 1200.0
+    phase = 2 * np.pi * (f0 * t + 0.5 * (f1 - f0) * (t * t / dur))
+    env = np.exp(-t * 20.0)
+    wave = 0.6 * np.sin(phase) * env
+    # convert to 16-bit mono
+    arr = np.int16(np.clip(wave, -1.0, 1.0) * 32767)
+    try:
+        snd = pygame.mixer.Sound(buffer=arr.tobytes())
+        return snd
+    except Exception:
+        return None
+
+
+def make_shot_sound() -> pygame.mixer.Sound | None:
+    """Generate a short shot/pew sound."""
+    if not try_init_mixer():
+        return None
+    sr = 22050
+    dur = 0.08
+    n = int(sr * dur)
+    t = np.linspace(0, dur, n, endpoint=False)
+    # Square-ish wave via sign(sin) with slight pitch drop
+    f0, f1 = 1600.0, 900.0
+    freq = f0 + (f1 - f0) * (t / dur)
+    phase = 2 * np.pi * np.cumsum(freq) / sr
+    wave = np.sign(np.sin(phase)) * (0.5)  # harsh
+    # envelope: super fast attack, very fast decay
+    env = np.minimum(t / 0.004, 1.0) * np.exp(-t * 40.0)
+    y = wave * env
+    arr = np.int16(np.clip(y, -1.0, 1.0) * 32767)
+    try:
+        return pygame.mixer.Sound(buffer=arr.tobytes())
+    except Exception:
+        return None
+
+
+def make_enemy_death_sound() -> pygame.mixer.Sound | None:
+    """Generate a short 'death cry' with pitch drop and grit."""
+    return _make_death_cry_sound(variant="enemy")
+
+
+def make_player_death_sound() -> pygame.mixer.Sound | None:
+    """Longer, deeper 'death cry' for the player."""
+    return _make_death_cry_sound(variant="player")
+
+
+def _make_death_cry_sound(variant: str = "enemy") -> pygame.mixer.Sound | None:
+    """Procedural vocal-ish death cry using pitch-drop saw + formant tones + noise + distortion."""
+    if not try_init_mixer():
+        return None
+    sr = 22050
+    if variant == "player":
+        dur = 0.7
+        f0_start, f0_end = 240.0, 90.0
+        grit = 0.85
+    else:
+        dur = 0.45
+        f0_start, f0_end = 300.0, 120.0
+        grit = 0.75
+    n = int(sr * dur)
+    if n <= 16:
+        return None
+    t = np.linspace(0, dur, n, endpoint=False)
+    # Pitch envelope with a touch of vibrato
+    vib = 0.03 * np.sin(2 * np.pi * 6.5 * t)
+    freq = (f0_start + (f0_end - f0_start) * (t / dur)) * (1.0 + vib)
+    phase = 2 * np.pi * np.cumsum(freq) / sr
+    frac = np.mod(phase / (2 * np.pi), 1.0)
+    saw = 2.0 * frac - 1.0
+    # Vowel-like overtones ("AH") as additional sin components (formant hints)
+    f1, f2, f3 = 800.0, 1150.0, 2900.0
+    vowel = 0.25 * np.sin(2 * np.pi * f1 * t) + 0.18 * np.sin(2 * np.pi * f2 * t) + 0.12 * np.sin(2 * np.pi * f3 * t)
+    # Breath/noise component
+    rng = np.random.default_rng(20250829)
+    noise = rng.standard_normal(n) * 0.1 * np.exp(-t * 10.0)
+    # Combine and apply soft clipping for grit
+    raw = 0.7 * saw + vowel + noise
+    y = np.tanh(grit * raw)
+    # Amplitude envelope: fast attack, curved decay
+    attack = np.minimum(t / 0.02, 1.0)
+    decay = np.exp(-t * (3.0 if variant == "player" else 5.0))
+    env = attack * decay
+    out = y * env * 0.9
+    # Normalize and convert
+    out /= (np.max(np.abs(out)) + 1e-9)
+    arr = np.int16(np.clip(out, -1.0, 1.0) * 32767)
+    try:
+        return pygame.mixer.Sound(buffer=arr.tobytes())
+    except Exception:
+        return None
 PLAYER_CONTACT_RADIUS = 0.6
 
 # Kart (0=tomt, >0=veggtype/tekstur-id)
@@ -142,6 +256,23 @@ class AmmoBox:
         self.alive = True
         self.radius = 0.3
         self.height_param = 0.35
+
+
+class PickupPop:
+    """Transient visual effect when picking up ammo: quick scale 'pop'."""
+    def __init__(self, x: float, y: float) -> None:
+        self.x = x
+        self.y = y
+        self.age = 0.0
+        self.dur = 0.20  # seconds
+        self.alive = True
+
+    def update(self, dt: float) -> None:
+        if not self.alive:
+            return
+        self.age += dt
+        if self.age >= self.dur:
+            self.alive = False
 
 # ---------- Fiende ----------
 # Enemy types
@@ -1043,6 +1174,60 @@ def build_pickups_batch(pickups: list["AmmoBox"]) -> np.ndarray:
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
 
+def build_pickup_pops_batch(pops: list["PickupPop"]) -> np.ndarray:
+    """Billboard tiny pop quads with quick scale-up and fade-out."""
+    verts: list[float] = []
+    for fx in pops:
+        if not fx.alive:
+            continue
+        spr_x = fx.x - player_x
+        spr_y = fx.y - player_y
+        inv_det = 1.0 / (plane_x * dir_y - dir_x * plane_y + 1e-9)
+        trans_x = inv_det * (dir_y * spr_x - dir_x * spr_y)
+        trans_y = inv_det * (-plane_y * spr_x + plane_x * spr_y)
+        if trans_y <= 0:
+            continue
+        sprite_screen_x = int((WIDTH / 2) * (1 + trans_x / trans_y))
+        base = max(1, int(abs(HEIGHT / trans_y) * 0.2))  # very small base size
+        # Scale curve: overshoot then settle quickly (0..dur)
+        t = max(0.0, min(1.0, fx.age / fx.dur))
+        scale = 0.6 + 0.8 * (1.0 - (1.0 - t) * (1.0 - t))  # ease-out to ~1.4x
+        sprite_h = max(1, int(base * scale))
+        sprite_w = sprite_h
+        v_shift = int((0.5 - 0.45) * sprite_h)
+        draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_start_x = -sprite_w // 2 + sprite_screen_x
+        draw_end_x = draw_start_x + sprite_w
+        if draw_end_x < 0 or draw_start_x >= WIDTH:
+            continue
+        draw_start_x = max(0, draw_start_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
+
+        x0 = (2.0 * draw_start_x) / WIDTH - 1.0
+        x1 = (2.0 * (draw_end_x + 1)) / WIDTH - 1.0
+        y0 = y_ndc(draw_start_y)
+        y1 = y_ndc(draw_end_y)
+        depth = clamp01(trans_y / FAR_PLANE)
+        # subtle fade-out
+        a = 1.0 - t
+        r = g = b = 0.9 * a + 0.1
+        u0, v0, u1, v1 = 0.0, 0.0, 1.0, 1.0
+        verts.extend(
+            [
+                x0, y0, u0, v0, r, g, b, depth,
+                x0, y1, u0, v1, r, g, b, depth,
+                x1, y0, u1, v0, r, g, b, depth,
+                x1, y0, u1, v0, r, g, b, depth,
+                x0, y1, u0, v1, r, g, b, depth,
+                x1, y1, u1, v1, r, g, b, depth,
+            ]
+        )
+    if not verts:
+        return np.zeros((0, 8), dtype=np.float32)
+    return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
+
 def build_enemies_batch_by_type(enemies: list["Enemy"], enemy_type: int) -> np.ndarray:
     """Build batch for enemies of a specific type"""
     verts: list[float] = []
@@ -1663,6 +1848,12 @@ def main() -> None:
     # Ammo system
     ammo: int = 10
     pickups: list[AmmoBox] = []
+    pickup_pops: list[PickupPop] = []
+    # sounds (best-effort)
+    pickup_snd = make_pickup_sound()
+    shot_snd = make_shot_sound()
+    death_snd = make_enemy_death_sound()
+    player_death_snd = make_player_death_sound()
     # ammo HUD cache
     ammo_prev_text: str = ""
     ammo_tex_id: int | None = None
@@ -1787,6 +1978,11 @@ def main() -> None:
                     firing = True
                     recoil_t = 0.0
                     ammo -= 1
+                    try:
+                        if shot_snd is not None:
+                            shot_snd.play()
+                    except Exception:
+                        pass
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if ammo > 0:
                     bx = player_x + dir_x * 0.4
@@ -1797,6 +1993,11 @@ def main() -> None:
                     firing = True
                     recoil_t = 0.0
                     ammo -= 1
+                    try:
+                        if shot_snd is not None:
+                            shot_snd.play()
+                    except Exception:
+                        pass
 
         handle_input(dt)
 
@@ -1816,6 +2017,12 @@ def main() -> None:
                         score += ENEMY_SCORE.get(e.enemy_type, 100)
                         # invalider score-tekst slik at den oppdateres
                         score_prev_text = ""
+                        # death sound
+                        try:
+                            if death_snd is not None:
+                                death_snd.play()
+                        except Exception:
+                            pass
                         # 1 av 5 dropper ammo (20%)
                         if random.random() < 0.2:
                             # Harder enemies drop more ammo on average
@@ -1844,7 +2051,20 @@ def main() -> None:
             if dx * dx + dy * dy <= (0.5 * 0.5):
                 ammo += p.amount
                 p.alive = False
+                # visual pop
+                pickup_pops.append(PickupPop(p.x, p.y))
+                # audio
+                try:
+                    if pickup_snd is not None:
+                        pickup_snd.play()
+                except Exception:
+                    pass
         pickups = [p for p in pickups if p.alive]
+
+        # Update pickup pops
+        for fx in pickup_pops:
+            fx.update(dt)
+        pickup_pops = [fx for fx in pickup_pops if fx.alive]
 
         # Spiller tar kontakt-skade om fiender er nærme
         dps_total = 0.0
@@ -1862,6 +2082,12 @@ def main() -> None:
         if (not game_over) and player_hp <= 0.0:
             game_over = True
             game_over_timer = 2.0
+            # Player death sound
+            try:
+                if player_death_snd is not None:
+                    player_death_snd.play()
+            except Exception:
+                pass
             # Create texture once
             try:
                 surf = font_big.render("GAME OVER", True, (255, 255, 255))
@@ -1898,6 +2124,11 @@ def main() -> None:
         pb = build_pickups_batch(pickups)
         if pb.size:
             renderer.draw_arrays(pb, renderer.textures[150], use_tex=True)
+
+        # Pickup pop effects (render using ammo box texture, small & fading)
+        pops_batch = build_pickup_pops_batch(pickup_pops)
+        if pops_batch.size:
+            renderer.draw_arrays(pops_batch, renderer.textures[150], use_tex=True)
 
         # Enemies (billboards) - render by type for different textures
         for enemy_type in [ENEMY_BLACK_HELMET, ENEMY_GREY_HELMET, ENEMY_GREY_NO_HELMET]:
