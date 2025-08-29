@@ -154,7 +154,7 @@ class Enemy:
         self.enemy_type = enemy_type
         self.alive = True
         self.radius = 0.35  # kollisjon/hitbox i kart-enheter
-        self.speed = 1.4  # enheter/sek (enkel jakt)
+        self.speed = 1.6  # enheter/sek (enkel jakt)
         self.height_param = 0.5  # hvor høyt sprite sentreres i skjerm
 
         # Set HP/texture by type
@@ -202,8 +202,10 @@ class Enemy:
         dx = player_x - self.x
         dy = player_y - self.y
         dist = math.hypot(dx, dy) + 1e-9
-        # ikke gå helt oppå spilleren
-        if dist > 0.75:
+        # la fiender komme nær nok til at kontakt-skade starter
+        # stopp litt INNENFOR skade-radius
+        stop_dist = max(0.35, PLAYER_CONTACT_RADIUS - 0.05)
+        if dist > stop_dist:
             ux, uy = dx / dist, dy / dist
             step = self.speed * dt
             self._try_move(self.x + ux * step, self.y + uy * step)
@@ -1504,11 +1506,17 @@ def main() -> None:
 
     # Score/tekst
     font = pygame.font.SysFont(None, 28)
+    font_small = pygame.font.SysFont(None, 18)
     score: int = 0
     score_prev_text: str = ""
     score_tex_id: int | None = None
     score_tex_w = 0
     score_tex_h = 0
+    # HP percent text cache
+    hp_prev_text: str = ""
+    hp_tex_id: int | None = None
+    hp_tex_w = 0
+    hp_tex_h = 0
 
     bullets: list[Bullet] = []
     firing = False
@@ -1740,6 +1748,85 @@ def main() -> None:
                 use_tex=False,
             )
 
+        # HP prosent-tekst, sentrert i baren
+        hp_pct = int(round(ratio * 100.0))
+        hp_text = f"{hp_pct}%"
+        if hp_text != hp_prev_text:
+            if hp_tex_id is not None:
+                try:
+                    gl.glDeleteTextures([hp_tex_id])
+                except Exception:
+                    pass
+                hp_tex_id = None
+            hp_surf = font_small.render(hp_text, True, (255, 255, 255))
+            hp_tex_w, hp_tex_h = hp_surf.get_width(), hp_surf.get_height()
+            hp_tex_id = surface_to_texture(hp_surf)
+            hp_prev_text = hp_text
+
+        if hp_tex_id is not None:
+            tx = HALF_W - hp_tex_w // 2
+            ty = y_px + (bar_h - hp_tex_h) // 2
+            x0t = (2.0 * tx) / WIDTH - 1.0
+            x1t = (2.0 * (tx + hp_tex_w)) / WIDTH - 1.0
+            y0t = 1.0 - 2.0 * (ty / HEIGHT)
+            y1t = 1.0 - 2.0 * ((ty + hp_tex_h) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            hp_verts = np.asarray(
+                [
+                    x0t,
+                    y0t,
+                    0.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x0t,
+                    y1t,
+                    0.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1t,
+                    y0t,
+                    1.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1t,
+                    y0t,
+                    1.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x0t,
+                    y1t,
+                    0.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1t,
+                    y1t,
+                    1.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                ],
+                dtype=np.float32,
+            ).reshape((-1, 8))
+            renderer.draw_arrays(hp_verts, hp_tex_id, use_tex=True)
+
         # Score-tekst (øverst til høyre)
         score_text = f"Score: {score}"
         if score_text != score_prev_text:
@@ -1835,6 +1922,8 @@ def main() -> None:
     try:
         if score_tex_id is not None:
             gl.glDeleteTextures([score_tex_id])
+        if hp_tex_id is not None:
+            gl.glDeleteTextures([hp_tex_id])
     except Exception:
         pass
 
