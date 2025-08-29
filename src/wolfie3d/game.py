@@ -44,8 +44,8 @@ FOV = 66 * math.pi / 180.0
 PLANE_LEN = math.tan(FOV / 2)
 
 # Bevegelse
-MOVE_SPEED = 3.0      # enheter/sek
-ROT_SPEED = 2.0       # rad/sek
+MOVE_SPEED = 3.0  # enheter/sek
+ROT_SPEED = 2.0  # rad/sek
 STRAFE_SPEED = 2.5
 
 # Tekstur-størrelse brukt på GPU (proseduralt generert)
@@ -54,28 +54,33 @@ TEX_W = TEX_H = 256
 # Depth mapping (lineær til [0..1] for gl_FragDepth)
 FAR_PLANE = 100.0
 
+# Spiller-HP
+PLAYER_MAX_HP = 100
+PLAYER_CONTACT_DPS = 15.0  # skade per sekund per fiende innenfor radius
+PLAYER_CONTACT_RADIUS = 0.6
+
 # Kart (0=tomt, >0=veggtype/tekstur-id)
 MAP: list[list[int]] = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,2,2,2,2,2,0,0,0,0,3,3,3,0,0,4,4,4,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 3, 3, 3, 0, 0, 4, 4, 4, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]
 MAP_W = len(MAP[0])
 MAP_H = len(MAP)
@@ -86,17 +91,23 @@ player_y = 10.5
 dir_x, dir_y = 1.0, 0.0
 plane_x, plane_y = 0.0, PLANE_LEN
 
+
 # ---------- Hjelpere ----------
 def in_map(ix: int, iy: int) -> bool:
     return 0 <= ix < MAP_W and 0 <= iy < MAP_H
 
+
 def is_wall(ix: int, iy: int) -> bool:
     return in_map(ix, iy) and MAP[iy][ix] > 0
 
+
 def clamp01(x: float) -> float:
-    if x < 0.0: return 0.0
-    if x > 1.0: return 1.0
+    if x < 0.0:
+        return 0.0
+    if x > 1.0:
+        return 1.0
     return x
+
 
 # ---------- Prosjektil ----------
 class Bullet:
@@ -121,15 +132,56 @@ class Bullet:
         self.age += dt
         self.height_param = min(0.65, self.height_param + 0.35 * dt)
 
+
 # ---------- Fiende ----------
+# Enemy types
+ENEMY_BLACK_HELMET = 0  # 3 HP - black uniform with helmet
+ENEMY_GREY_HELMET = 1  # 2 HP - grey uniform with helmet
+ENEMY_GREY_NO_HELMET = 2  # 1 HP - grey uniform without helmet
+
+# Poeng per fiendetype
+ENEMY_SCORE: dict[int, int] = {
+    ENEMY_GREY_NO_HELMET: 100,  # lett
+    ENEMY_GREY_HELMET: 200,  # middels
+    ENEMY_BLACK_HELMET: 300,  # vanskelig
+}
+
+
 class Enemy:
-    def __init__(self, x: float, y: float) -> None:
+    def __init__(self, x: float, y: float, enemy_type: int = ENEMY_GREY_NO_HELMET) -> None:
         self.x = x
         self.y = y
+        self.enemy_type = enemy_type
         self.alive = True
-        self.radius = 0.35     # kollisjon/hitbox i kart-enheter
-        self.speed = 1.4       # enheter/sek (enkel jakt)
+        self.radius = 0.35  # kollisjon/hitbox i kart-enheter
+        self.speed = 1.4  # enheter/sek (enkel jakt)
         self.height_param = 0.5  # hvor høyt sprite sentreres i skjerm
+
+        # Set HP/texture by type
+        if self.enemy_type == ENEMY_BLACK_HELMET:
+            self.max_hp = 3
+            self.texture_id = 200
+        elif self.enemy_type == ENEMY_GREY_HELMET:
+            self.max_hp = 2
+            self.texture_id = 201
+        else:  # ENEMY_GREY_NO_HELMET
+            self.max_hp = 1
+            self.texture_id = 202
+
+        self.hp = self.max_hp
+        # kort visuell feedback når fienden blir truffet
+        self.hurt_t: float = 0.0  # sekunder igjen med "rød blink"
+
+    def take_damage(self, damage: int = 1) -> bool:
+        """Take damage and return True if enemy died"""
+        if not self.alive:
+            return False
+        self.hp -= damage
+        self.hurt_t = 0.18  # ~3 frames at 60 FPS
+        if self.hp <= 0:
+            self.alive = False
+            return True
+        return False
 
     def _try_move(self, nx: float, ny: float) -> None:
         # enkel vegg-kollisjon (sirkulær hitbox mot grid)
@@ -143,6 +195,9 @@ class Enemy:
     def update(self, dt: float) -> None:
         if not self.alive:
             return
+        # fade ut "hit flash"
+        if self.hurt_t > 0.0:
+            self.hurt_t = max(0.0, self.hurt_t - dt)
         # enkel "chase": gå mot spilleren, stopp om rett foran vegg
         dx = player_x - self.x
         dy = player_y - self.y
@@ -172,6 +227,7 @@ def make_brick_texture() -> pygame.Surface:
         pygame.draw.line(surf, mortar, (x, 0), (x, TEX_H))
     return surf
 
+
 def make_stone_texture() -> pygame.Surface:
     surf = pygame.Surface((TEX_W, TEX_H))
     base = (110, 110, 120)
@@ -182,19 +238,21 @@ def make_stone_texture() -> pygame.Surface:
                 c = 90 + ((x * y) % 40)
                 surf.set_at((x, y), (c, c, c))
     for i in range(5):
-        pygame.draw.line(surf, (80, 80, 85), (i*12, 0), (TEX_W-1, TEX_H-1 - i*6), 1)
+        pygame.draw.line(surf, (80, 80, 85), (i * 12, 0), (TEX_W - 1, TEX_H - 1 - i * 6), 1)
     return surf
+
 
 def make_wood_texture() -> pygame.Surface:
     surf = pygame.Surface((TEX_W, TEX_H))
     for y in range(TEX_H):
         for x in range(TEX_W):
-            v = int(120 + 40 * math.sin((x + y*0.5) * 0.12) + 20 * math.sin(y * 0.3))
+            v = int(120 + 40 * math.sin((x + y * 0.5) * 0.12) + 20 * math.sin(y * 0.3))
             v = max(60, min(200, v))
             surf.set_at((x, y), (140, v, 60))
     for x in range(0, TEX_W, TEX_W // 4):
         pygame.draw.line(surf, (90, 60, 30), (x, 0), (x, TEX_H))
     return surf
+
 
 def make_metal_texture() -> pygame.Surface:
     surf = pygame.Surface((TEX_W, TEX_H), pygame.SRCALPHA)
@@ -205,14 +263,16 @@ def make_metal_texture() -> pygame.Surface:
             pygame.draw.circle(surf, (90, 95, 100, 255), (x, y), 2)
     for y in range(TEX_H):
         shade = 130 + (y % 8) * 2
-        pygame.draw.line(surf, (shade, shade, shade+5, 255), (0, y), (TEX_W, y), 1)
+        pygame.draw.line(surf, (shade, shade, shade + 5, 255), (0, y), (TEX_W, y), 1)
     return surf
+
 
 def make_bullet_texture() -> pygame.Surface:
     surf = pygame.Surface((32, 32), pygame.SRCALPHA)
     pygame.draw.circle(surf, (255, 240, 150, 220), (16, 16), 8)
     pygame.draw.circle(surf, (255, 255, 255, 255), (13, 13), 3)
     return surf
+
 
 # ---------- OpenGL utils ----------
 VS_SRC = """
@@ -258,6 +318,7 @@ void main() {
 }
 """
 
+
 def compile_shader(src: str, stage: int) -> int:
     sid = gl.glCreateShader(stage)
     gl.glShaderSource(sid, src)
@@ -267,6 +328,7 @@ def compile_shader(src: str, stage: int) -> int:
         log = gl.glGetShaderInfoLog(sid).decode()
         raise RuntimeError(f"Shader compile error:\n{log}")
     return sid
+
 
 def make_program(vs_src: str, fs_src: str) -> int:
     vs = compile_shader(vs_src, gl.GL_VERTEX_SHADER)
@@ -283,13 +345,16 @@ def make_program(vs_src: str, fs_src: str) -> int:
         raise RuntimeError(f"Program link error:\n{log}")
     return prog
 
+
 def surface_to_texture(surf: pygame.Surface) -> int:
     """Laster pygame.Surface til GL_TEXTURE_2D (RGBA8). Returnerer texture id."""
     data = pygame.image.tostring(surf.convert_alpha(), "RGBA", True)
     w, h = surf.get_width(), surf.get_height()
     tid = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_2D, tid)
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, w, h, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, data)
+    gl.glTexImage2D(
+        gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, w, h, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, data
+    )
     gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
@@ -297,22 +362,54 @@ def surface_to_texture(surf: pygame.Surface) -> int:
     gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
     return tid
 
+
 def make_white_texture() -> int:
     surf = pygame.Surface((1, 1), pygame.SRCALPHA)
     surf.fill((255, 255, 255, 255))
     return surface_to_texture(surf)
 
+
 def make_enemy_texture() -> pygame.Surface:
     s = pygame.Surface((256, 256), pygame.SRCALPHA)
     # kropp
-    pygame.draw.rect(s, (60, 60, 70, 255), (100, 80, 56, 120), border_radius=6)
+    pygame.draw.rect(s, (140, 140, 145, 255), (100, 80, 56, 120), border_radius=6)
+    # hode - no helmet (grey uniform without helmet)
+    pygame.draw.circle(s, (220, 200, 180, 255), (128, 70), 26)
+    # “arm”
+    pygame.draw.rect(s, (140, 140, 145, 255), (86, 110, 24, 16))
+    pygame.draw.rect(s, (140, 140, 145, 255), (146, 110, 24, 16))
+    return s
+
+
+def make_enemy_black_helmet_texture() -> pygame.Surface:
+    """Black uniform with helmet - 3 HP"""
+    s = pygame.Surface((256, 256), pygame.SRCALPHA)
+    # kropp - black uniform
+    pygame.draw.rect(s, (40, 40, 50, 255), (100, 80, 56, 120), border_radius=6)
     # hode
     pygame.draw.circle(s, (220, 200, 180, 255), (128, 70), 26)
-    # hjelm-ish
-    pygame.draw.arc(s, (40, 40, 50, 255), (92, 40, 72, 40), 3.14, 0, 6)
-    # “arm”
-    pygame.draw.rect(s, (60, 60, 70, 255), (86, 110, 24, 16))
-    pygame.draw.rect(s, (60, 60, 70, 255), (146, 110, 24, 16))
+    # helmet - more prominent
+    pygame.draw.arc(s, (20, 20, 30, 255), (92, 40, 72, 50), 3.14, 0, 8)
+    pygame.draw.ellipse(s, (20, 20, 30, 255), (100, 44, 56, 32))
+    # "arm" - black
+    pygame.draw.rect(s, (40, 40, 50, 255), (86, 110, 24, 16))
+    pygame.draw.rect(s, (40, 40, 50, 255), (146, 110, 24, 16))
+    return s
+
+
+def make_enemy_grey_helmet_texture() -> pygame.Surface:
+    """Grey uniform with helmet - 2 HP"""
+    s = pygame.Surface((256, 256), pygame.SRCALPHA)
+    # kropp - darker grey uniform
+    pygame.draw.rect(s, (100, 100, 105, 255), (100, 80, 56, 120), border_radius=6)
+    # hode
+    pygame.draw.circle(s, (220, 200, 180, 255), (128, 70), 26)
+    # helmet - grey
+    pygame.draw.arc(s, (80, 80, 85, 255), (92, 40, 72, 45), 3.14, 0, 6)
+    pygame.draw.ellipse(s, (80, 80, 85, 255), (102, 46, 52, 28))
+    # "arm" - darker grey
+    pygame.draw.rect(s, (100, 100, 105, 255), (86, 110, 24, 16))
+    pygame.draw.rect(s, (100, 100, 105, 255), (146, 110, 24, 16))
     return s
 
 
@@ -321,6 +418,7 @@ from pathlib import Path
 import os
 import pygame
 from OpenGL import GL as gl
+
 
 # ---------- GL Renderer state ----------
 class GLRenderer:
@@ -431,14 +529,16 @@ class GLRenderer:
             for m in missing:
                 print("  -", m)
             raise FileNotFoundError(
-                "Manglende teksturer. Sørg for at filene ligger i assets/textures/")
+                "Manglende teksturer. Sørg for at filene ligger i assets/textures/"
+            )
 
         def _load(path: Path, size: int = 512) -> int:
             print(f"[GLRenderer] Laster: {path}")
             surf = pygame.image.load(str(path)).convert_alpha()
             if surf.get_width() != size or surf.get_height() != size:
                 print(
-                    f"[GLRenderer]  - rescale {surf.get_width()}x{surf.get_height()} -> {size}x{size}")
+                    f"[GLRenderer]  - rescale {surf.get_width()}x{surf.get_height()} -> {size}x{size}"
+                )
                 surf = pygame.transform.smoothscale(surf, (size, size))
             tex_id = surface_to_texture(surf)
             print(f"[GLRenderer]  - OK (GL tex id {tex_id})")
@@ -452,7 +552,7 @@ class GLRenderer:
         # Sprite (kule) – behold prosedyre
         self.textures[99] = surface_to_texture(make_bullet_texture())
 
-        # Enemy sprite (ID 200): prøv fil, ellers prosedyral placeholder
+        # Enemy sprites (ID 200, 201, 202): prøv fil, ellers prosedural placeholder
         try:
             sprites_dir = self._resolve_textures_base().parent / "sprites"
             enemy_path = sprites_dir / "enemy.png"
@@ -460,13 +560,20 @@ class GLRenderer:
             if enemy_path.exists():
                 self.textures[200] = self._load_texture_file(enemy_path, 512)
                 print(f"[GLRenderer] Enemy OK (GL tex id {self.textures[200]})")
+                # Use same texture for all types if file exists
+                self.textures[201] = self.textures[200]
+                self.textures[202] = self.textures[200]
             else:
-                # fallback – prosedural fiende
-                self.textures[200] = surface_to_texture(make_enemy_texture())
-                print("[GLRenderer] Enemy: bruker prosedural sprite")
+                # fallback – prosedural fiende textures
+                self.textures[200] = surface_to_texture(make_enemy_black_helmet_texture())
+                self.textures[201] = surface_to_texture(make_enemy_grey_helmet_texture())
+                self.textures[202] = surface_to_texture(make_enemy_texture())
+                print("[GLRenderer] Enemy: bruker prosedural sprites")
         except Exception as ex:
             print(f"[GLRenderer] Enemy: FEIL ved lasting ({ex}), bruker prosedural")
-            self.textures[200] = surface_to_texture(make_enemy_texture())
+            self.textures[200] = surface_to_texture(make_enemy_black_helmet_texture())
+            self.textures[201] = surface_to_texture(make_enemy_grey_helmet_texture())
+            self.textures[202] = surface_to_texture(make_enemy_texture())
 
         print("[GLRenderer] Teksturer lastet.\n")
 
@@ -474,6 +581,7 @@ class GLRenderer:
     def draw_arrays(self, verts: np.ndarray, texture: int, use_tex: bool) -> None:
         if verts.size == 0:
             return
+        # Set shader program and texture
         gl.glUseProgram(self.prog)
         gl.glUniform1i(self.uni_use_tex, 1 if use_tex else 0)
         gl.glActiveTexture(gl.GL_TEXTURE0)
@@ -487,6 +595,7 @@ class GLRenderer:
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         gl.glBindVertexArray(0)
 
+
 # ---------- Raycasting + bygg GL-verts ----------
 def column_ndc(x: int) -> tuple[float, float]:
     """Returnerer venstre/høyre NDC-X for en 1-px bred skjermkolonne."""
@@ -494,13 +603,16 @@ def column_ndc(x: int) -> tuple[float, float]:
     x_right = (2.0 * (x + 1)) / WIDTH - 1.0
     return x_left, x_right
 
+
 def y_ndc(y_pix: int) -> float:
     """Konverter skjerm-Y (0 top) til NDC-Y (1 top, -1 bunn)."""
     return 1.0 - 2.0 * (y_pix / float(HEIGHT))
 
+
 def dim_for_side(side: int) -> float:
     # dim litt på sidevegger (liknende BLEND_MULT tidligere)
     return 0.78 if side == 1 else 1.0
+
 
 def cast_and_build_wall_batches() -> dict[int, list[float]]:
     batches: dict[int, list[float]] = {1: [], 2: [], 3: [], 4: []}
@@ -549,10 +661,14 @@ def cast_and_build_wall_batches() -> dict[int, list[float]]:
                 tex_id = MAP[map_y][map_x]
 
         if side == 0:
-            perp_wall_dist = (map_x - player_x + (1 - step_x) / 2.0) / (ray_dir_x if ray_dir_x != 0 else 1e-9)
+            perp_wall_dist = (map_x - player_x + (1 - step_x) / 2.0) / (
+                ray_dir_x if ray_dir_x != 0 else 1e-9
+            )
             wall_x = player_y + perp_wall_dist * ray_dir_y
         else:
-            perp_wall_dist = (map_y - player_y + (1 - step_y) / 2.0) / (ray_dir_y if ray_dir_y != 0 else 1e-9)
+            perp_wall_dist = (map_y - player_y + (1 - step_y) / 2.0) / (
+                ray_dir_y if ray_dir_y != 0 else 1e-9
+            )
             wall_x = player_x + perp_wall_dist * ray_dir_x
 
         wall_x -= math.floor(wall_x)
@@ -582,22 +698,65 @@ def cast_and_build_wall_batches() -> dict[int, list[float]]:
         # [x, y, u, v, r, g, b, depth]
         v = [
             # tri 1
-            x_left,  top_ndc, u, 0.0, r, g, b, depth,
-            x_left,  bot_ndc, u, 1.0, r, g, b, depth,
-            x_right, top_ndc, u, 0.0, r, g, b, depth,
+            x_left,
+            top_ndc,
+            u,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x_left,
+            bot_ndc,
+            u,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x_right,
+            top_ndc,
+            u,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
             # tri 2
-            x_right, top_ndc, u, 0.0, r, g, b, depth,
-            x_left,  bot_ndc, u, 1.0, r, g, b, depth,
-            x_right, bot_ndc, u, 1.0, r, g, b, depth,
+            x_right,
+            top_ndc,
+            u,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x_left,
+            bot_ndc,
+            u,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x_right,
+            bot_ndc,
+            u,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
         ]
         batches.setdefault(tex_id, []).extend(v)
     return batches
 
+
 def build_fullscreen_background() -> np.ndarray:
     """To store quads (himmel/gulv), farget med vertex-color, tegnes uten tekstur."""
     # Himmel (øverst halvdel)
-    sky_col = (40/255.0, 60/255.0, 90/255.0)
-    floor_col = (35/255.0, 35/255.0, 35/255.0)
+    sky_col = (40 / 255.0, 60 / 255.0, 90 / 255.0)
+    floor_col = (35 / 255.0, 35 / 255.0, 35 / 255.0)
     verts: list[float] = []
 
     # Quad helper
@@ -605,20 +764,64 @@ def build_fullscreen_background() -> np.ndarray:
         r, g, b = col
         depth = 1.0  # lengst bak
         # u,v er 0 (vi bruker hvit 1x1 tekstur)
-        verts.extend([
-            x0, y0, 0.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y1, 1.0, 1.0, r, g, b, depth,
-        ])
+        verts.extend(
+            [
+                x0,
+                y0,
+                0.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y1,
+                1.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+            ]
+        )
 
     # Koordinater i NDC
-    add_quad(-1.0,  1.0,  1.0,  0.0, sky_col)   # øvre halvdel
-    add_quad(-1.0,  0.0,  1.0, -1.0, floor_col) # nedre halvdel
+    add_quad(-1.0, 1.0, 1.0, 0.0, sky_col)  # øvre halvdel
+    add_quad(-1.0, 0.0, 1.0, -1.0, floor_col)  # nedre halvdel
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
 
 def build_sprites_batch(bullets: list[Bullet]) -> np.ndarray:
     """Bygger ett quad per kule i skjermen (billboard), med depth."""
@@ -642,16 +845,16 @@ def build_sprites_batch(bullets: list[Bullet]) -> np.ndarray:
         # vertikal offset: "stiger"
         v_shift = int((0.5 - b.height_param) * sprite_h)
         draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
-        draw_end_y   = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
         # horisontal
         draw_start_x = -sprite_w // 2 + sprite_screen_x
-        draw_end_x   = draw_start_x + sprite_w
+        draw_end_x = draw_start_x + sprite_w
 
         # Klipp utenfor skjerm
         if draw_end_x < 0 or draw_start_x >= WIDTH:
             continue
         draw_start_x = max(0, draw_start_x)
-        draw_end_x   = min(WIDTH - 1, draw_end_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
 
         # Konverter til NDC
         x0 = (2.0 * draw_start_x) / WIDTH - 1.0
@@ -667,23 +870,183 @@ def build_sprites_batch(bullets: list[Bullet]) -> np.ndarray:
         u0, v0 = 0.0, 0.0
         u1, v1 = 1.0, 1.0
 
-        verts.extend([
-            x0, y0, u0, v0, r, g, bcol, depth,
-            x0, y1, u0, v1, r, g, bcol, depth,
-            x1, y0, u1, v0, r, g, bcol, depth,
-
-            x1, y0, u1, v0, r, g, bcol, depth,
-            x0, y1, u0, v1, r, g, bcol, depth,
-            x1, y1, u1, v1, r, g, bcol, depth,
-        ])
-
-
+        verts.extend(
+            [
+                x0,
+                y0,
+                u0,
+                v0,
+                r,
+                g,
+                bcol,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                bcol,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                bcol,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                bcol,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                bcol,
+                depth,
+                x1,
+                y1,
+                u1,
+                v1,
+                r,
+                g,
+                bcol,
+                depth,
+            ]
+        )
 
     if not verts:
         return np.zeros((0, 8), dtype=np.float32)
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
-def build_enemies_batch(enemies: list['Enemy']) -> np.ndarray:
+
+def build_enemies_batch_by_type(enemies: list["Enemy"], enemy_type: int) -> np.ndarray:
+    """Build batch for enemies of a specific type"""
+    verts: list[float] = []
+    for e in enemies:
+        if not e.alive or e.enemy_type != enemy_type:
+            continue
+        spr_x = e.x - player_x
+        spr_y = e.y - player_y
+        inv_det = 1.0 / (plane_x * dir_y - dir_x * plane_y + 1e-9)
+        trans_x = inv_det * (dir_y * spr_x - dir_x * spr_y)
+        trans_y = inv_det * (-plane_y * spr_x + plane_x * spr_y)
+        if trans_y <= 0:
+            continue
+
+        sprite_screen_x = int((WIDTH / 2) * (1 + trans_x / trans_y))
+        sprite_h = abs(int(HEIGHT / trans_y))
+        sprite_w = sprite_h  # kvadratisk
+        v_shift = int((0.5 - e.height_param) * sprite_h)
+
+        draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_start_x = -sprite_w // 2 + sprite_screen_x
+        draw_end_x = draw_start_x + sprite_w
+        if draw_end_x < 0 or draw_start_x >= WIDTH:
+            continue
+
+        draw_start_x = max(0, draw_start_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
+
+        x0 = (2.0 * draw_start_x) / WIDTH - 1.0
+        x1 = (2.0 * (draw_end_x + 1)) / WIDTH - 1.0
+        y0 = 1.0 - 2.0 * (draw_start_y / HEIGHT)
+        y1 = 1.0 - 2.0 * (draw_end_y / HEIGHT)
+
+        depth = clamp01(trans_y / FAR_PLANE)
+        # base-farge per type (multipliseres med tekstur)
+        if e.enemy_type == ENEMY_BLACK_HELMET:  # 3 HP
+            base_r, base_g, base_b = 0.15, 0.15, 0.18  # nær svart
+        elif e.enemy_type == ENEMY_GREY_HELMET:  # 2 HP
+            base_r, base_g, base_b = 0.55, 0.55, 0.60  # tydelig grå
+        else:  # ENEMY_GREY_NO_HELMET, 1 HP
+            base_r, base_g, base_b = 0.95, 0.80, 0.80  # lys/varm
+
+        # bland inn "hit flash" (mot rød) når skadet
+        if e.hurt_t > 0.0:
+            t = min(1.0, e.hurt_t / 0.18)
+            hit_r, hit_g, hit_b = 1.0, 0.3, 0.3
+            r = base_r + (hit_r - base_r) * t
+            g = base_g + (hit_g - base_g) * t
+            b = base_b + (hit_b - base_b) * t
+        else:
+            r, g, b = base_r, base_g, base_b
+
+        ENEMY_V_FLIP = True  # sett False hvis den blir riktig uten flip
+        if ENEMY_V_FLIP:
+            u0, v0, u1, v1 = 0.0, 1.0, 1.0, 0.0
+        else:
+            u0, v0, u1, v1 = 0.0, 0.0, 1.0, 1.0
+
+        verts.extend(
+            [
+                x0,
+                y0,
+                u0,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y1,
+                u1,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+            ]
+        )
+
+    if not verts:
+        return np.zeros((0, 8), dtype=np.float32)
+    return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
+
+def build_enemies_batch(enemies: list["Enemy"]) -> np.ndarray:
+    """Legacy function - builds all enemies together"""
     verts: list[float] = []
     for e in enemies:
         if not e.alive:
@@ -702,19 +1065,19 @@ def build_enemies_batch(enemies: list['Enemy']) -> np.ndarray:
         v_shift = int((0.5 - e.height_param) * sprite_h)
 
         draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
-        draw_end_y   = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
         draw_start_x = -sprite_w // 2 + sprite_screen_x
-        draw_end_x   = draw_start_x + sprite_w
+        draw_end_x = draw_start_x + sprite_w
         if draw_end_x < 0 or draw_start_x >= WIDTH:
             continue
 
         draw_start_x = max(0, draw_start_x)
-        draw_end_x   = min(WIDTH - 1, draw_end_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
 
         x0 = (2.0 * draw_start_x) / WIDTH - 1.0
         x1 = (2.0 * (draw_end_x + 1)) / WIDTH - 1.0
         y0 = 1.0 - 2.0 * (draw_start_y / HEIGHT)
-        y1 = 1.0 - 2.0 * (draw_end_y   / HEIGHT)
+        y1 = 1.0 - 2.0 * (draw_end_y / HEIGHT)
 
         depth = clamp01(trans_y / FAR_PLANE)
         r = g = b = 1.0
@@ -725,15 +1088,58 @@ def build_enemies_batch(enemies: list['Enemy']) -> np.ndarray:
         else:
             u0, v0, u1, v1 = 0.0, 0.0, 1.0, 1.0
 
-        verts.extend([
-            x0, y0, u0, v0, r, g, b, depth,
-            x0, y1, u0, v1, r, g, b, depth,
-            x1, y0, u1, v0, r, g, b, depth,
-
-            x1, y0, u1, v0, r, g, b, depth,
-            x0, y1, u0, v1, r, g, b, depth,
-            x1, y1, u1, v1, r, g, b, depth,
-        ])
+        verts.extend(
+            [
+                x0,
+                y0,
+                u0,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y1,
+                u1,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+            ]
+        )
 
     if not verts:
         return np.zeros((0, 8), dtype=np.float32)
@@ -755,30 +1161,117 @@ def build_crosshair_quads(size_px: int = 8, thickness_px: int = 2) -> np.ndarray
     depth = 0.0  # helt foran
 
     # horisontal strek
-    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, size_px, thickness_px//2)
-    verts.extend([
-        x0, y0, 0.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y1, 1.0, 1.0, r, g, b, depth,
-    ])
+    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, size_px, thickness_px // 2)
+    verts.extend(
+        [
+            x0,
+            y0,
+            0.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y1,
+            1.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+        ]
+    )
 
     # vertikal strek
-    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, thickness_px//2, size_px)
-    verts.extend([
-        x0, y0, 0.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y1, 1.0, 1.0, r, g, b, depth,
-    ])
+    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, thickness_px // 2, size_px)
+    verts.extend(
+        [
+            x0,
+            y0,
+            0.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y1,
+            1.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+        ]
+    )
 
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
 
 def build_weapon_overlay(firing: bool, recoil_t: float) -> np.ndarray:
     """En enkel "pistolboks" nederst (farget quad), m/ liten recoil-bevegelse."""
@@ -798,15 +1291,57 @@ def build_weapon_overlay(firing: bool, recoil_t: float) -> np.ndarray:
     r, g, b = (0.12, 0.12, 0.12)
     depth = 0.0
     verts = [
-        x0, y0, 0.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y1, 1.0, 1.0, r, g, b, depth,
+        x0,
+        y0,
+        0.0,
+        0.0,
+        r,
+        g,
+        b,
+        depth,
+        x0,
+        y1,
+        0.0,
+        1.0,
+        r,
+        g,
+        b,
+        depth,
+        x1,
+        y0,
+        1.0,
+        0.0,
+        r,
+        g,
+        b,
+        depth,
+        x1,
+        y0,
+        1.0,
+        0.0,
+        r,
+        g,
+        b,
+        depth,
+        x0,
+        y1,
+        0.0,
+        1.0,
+        r,
+        g,
+        b,
+        depth,
+        x1,
+        y1,
+        1.0,
+        1.0,
+        r,
+        g,
+        b,
+        depth,
     ]
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
 
 def build_minimap_quads() -> np.ndarray:
     """Liten GL-basert minimap øverst til venstre."""
@@ -822,24 +1357,68 @@ def build_minimap_quads() -> np.ndarray:
         x1 = (2.0 * (x_px + w_px)) / WIDTH - 1.0
         y0 = 1.0 - 2.0 * (y_px / HEIGHT)
         y1 = 1.0 - 2.0 * ((y_px + h_px) / HEIGHT)
-        verts.extend([
-            x0, y0, 0.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y1, 1.0, 1.0, r, g, b, depth,
-        ])
+        verts.extend(
+            [
+                x0,
+                y0,
+                0.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y1,
+                1.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+            ]
+        )
 
     # Bakgrunn
-    add_quad_px(pad-2, pad-2, mm_w+4, mm_h+4, (0.1, 0.1, 0.1), 0.0)
+    add_quad_px(pad - 2, pad - 2, mm_w + 4, mm_h + 4, (0.1, 0.1, 0.1), 0.0)
 
     # Celler
     for y in range(MAP_H):
         for x in range(MAP_W):
             if MAP[y][x] > 0:
                 col = (0.86, 0.86, 0.86)
-                add_quad_px(pad + x*scale, pad + y*scale, scale-1, scale-1, col, 0.0)
+                add_quad_px(pad + x * scale, pad + y * scale, scale - 1, scale - 1, col, 0.0)
 
     # Spiller
     px = int(player_x * scale)
@@ -855,6 +1434,7 @@ def build_minimap_quads() -> np.ndarray:
 
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
+
 # ---------- Input/fysikk ----------
 def try_move(nx: float, ny: float) -> tuple[float, float]:
     if not is_wall(int(nx), int(player_y)):
@@ -866,6 +1446,7 @@ def try_move(nx: float, ny: float) -> tuple[float, float]:
     else:
         y = player_y
     return x, y
+
 
 def handle_input(dt: float) -> None:
     global player_x, player_y, dir_x, dir_y, plane_x, plane_y
@@ -903,6 +1484,7 @@ def handle_input(dt: float) -> None:
         ny = player_y + (dir_x) * strafe
         player_x, player_y = try_move(nx, ny)
 
+
 # ---------- Main ----------
 def main() -> None:
     pygame.init()
@@ -920,14 +1502,27 @@ def main() -> None:
     clock = pygame.time.Clock()
     renderer = GLRenderer()
 
+    # Score/tekst
+    font = pygame.font.SysFont(None, 28)
+    score: int = 0
+    score_prev_text: str = ""
+    score_tex_id: int | None = None
+    score_tex_w = 0
+    score_tex_h = 0
+
     bullets: list[Bullet] = []
     firing = False
     recoil_t = 0.0
 
+    # Player health
+    player_hp: float = float(PLAYER_MAX_HP)
+
     enemies: list[Enemy] = [
-        Enemy(6.5, 10.5),
-        Enemy(12.5, 12.5),
-        Enemy(16.5, 6.5),
+        Enemy(6.5, 10.5, ENEMY_BLACK_HELMET),  # Black uniform, 3 HP
+        Enemy(12.5, 12.5, ENEMY_GREY_HELMET),  # Grey uniform with helmet, 2 HP
+        Enemy(16.5, 6.5, ENEMY_GREY_NO_HELMET),  # Grey uniform no helmet, 1 HP
+        Enemy(8.5, 8.5, ENEMY_BLACK_HELMET),  # Another black uniform, 3 HP
+        Enemy(14.5, 4.5, ENEMY_GREY_NO_HELMET),  # Another no helmet, 1 HP
     ]
 
     # Mus-capture (synlig cursor + crosshair)
@@ -978,7 +1573,11 @@ def main() -> None:
                 dx = e.x - b.x
                 dy = e.y - b.y
                 if dx * dx + dy * dy <= (e.radius * e.radius):
-                    e.alive = False  # fienden "dør"
+                    died = e.take_damage(1)  # deal 1 damage
+                    if died:
+                        score += ENEMY_SCORE.get(e.enemy_type, 100)
+                        # invalider score-tekst slik at den oppdateres
+                        score_prev_text = ""
                     b.alive = False  # kula forbrukes
                     break
         bullets = [b for b in bullets if b.alive]
@@ -986,6 +1585,18 @@ def main() -> None:
         # Oppdater fiender
         for e in enemies:
             e.update(dt)
+
+        # Spiller tar kontakt-skade om fiender er nærme
+        dps_total = 0.0
+        for e in enemies:
+            if not e.alive:
+                continue
+            dx = e.x - player_x
+            dy = e.y - player_y
+            if dx * dx + dy * dy <= (PLAYER_CONTACT_RADIUS * PLAYER_CONTACT_RADIUS):
+                dps_total += PLAYER_CONTACT_DPS
+        if dps_total > 0.0 and player_hp > 0.0:
+            player_hp = max(0.0, player_hp - dps_total * dt)
 
         # ---------- Render ----------
         gl.glViewport(0, 0, WIDTH, HEIGHT)
@@ -1011,10 +1622,12 @@ def main() -> None:
         if spr.size:
             renderer.draw_arrays(spr, renderer.textures[99], use_tex=True)
 
-        # Enemies (billboards)
-        enemies_batch = build_enemies_batch(enemies)
-        if enemies_batch.size:
-            renderer.draw_arrays(enemies_batch, renderer.textures[200], use_tex=True)
+        # Enemies (billboards) - render by type for different textures
+        for enemy_type in [ENEMY_BLACK_HELMET, ENEMY_GREY_HELMET, ENEMY_GREY_NO_HELMET]:
+            enemies_batch = build_enemies_batch_by_type(enemies, enemy_type)
+            if enemies_batch.size:
+                texture_id = 200 + enemy_type  # 200, 201, 202
+                renderer.draw_arrays(enemies_batch, renderer.textures[texture_id], use_tex=True)
 
         # Crosshair
         cross = build_crosshair_quads(8, 2)
@@ -1032,9 +1645,199 @@ def main() -> None:
         mm = build_minimap_quads()
         renderer.draw_arrays(mm, renderer.white_tex, use_tex=False)
 
+        # Health bar (øverst, midtstilt)
+        # bakgrunn + fyll som avhenger av HP
+        ratio = 0.0 if PLAYER_MAX_HP <= 0 else float(player_hp) / float(PLAYER_MAX_HP)
+        ratio = max(0.0, min(1.0, ratio))
+        bar_w = 300
+        bar_h = 12
+        pad_y = 8
+        x_px = HALF_W - bar_w // 2
+        y_px = pad_y
+        # farger
+        bg_col = (0.15, 0.15, 0.15)
+        # Lerp rød->grønn basert på ratio
+        red = (0.9, 0.25, 0.25)
+        green = (0.25, 0.9, 0.35)
+        fill_col = (
+            red[0] + (green[0] - red[0]) * ratio,
+            red[1] + (green[1] - red[1]) * ratio,
+            red[2] + (green[2] - red[2]) * ratio,
+        )
+        # bakgrunn quad
+        x0 = (2.0 * x_px) / WIDTH - 1.0
+        x1 = (2.0 * (x_px + bar_w)) / WIDTH - 1.0
+        y0 = 1.0 - 2.0 * (y_px / HEIGHT)
+        y1 = 1.0 - 2.0 * ((y_px + bar_h) / HEIGHT)
+        depth = 0.0
+        verts_hud: list[float] = []
+
+        def add_rect(x0f, y0f, x1f, y1f, col):
+            r, g, b = col
+            verts_hud.extend(
+                [
+                    x0f,
+                    y0f,
+                    0.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x0f,
+                    y1f,
+                    0.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1f,
+                    y0f,
+                    1.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1f,
+                    y0f,
+                    1.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x0f,
+                    y1f,
+                    0.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1f,
+                    y1f,
+                    1.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                ]
+            )
+
+        add_rect(x0, y0, x1, y1, bg_col)
+        # fyll bredde
+        fill_w = int(bar_w * ratio)
+        if fill_w > 0:
+            fx1 = (2.0 * (x_px + fill_w)) / WIDTH - 1.0
+            add_rect(x0, y0, fx1, y1, fill_col)
+        if verts_hud:
+            renderer.draw_arrays(
+                np.asarray(verts_hud, dtype=np.float32).reshape((-1, 8)),
+                renderer.white_tex,
+                use_tex=False,
+            )
+
+        # Score-tekst (øverst til høyre)
+        score_text = f"Score: {score}"
+        if score_text != score_prev_text:
+            # oppdater tekstur (frigjør gammel)
+            if score_tex_id is not None:
+                try:
+                    gl.glDeleteTextures([score_tex_id])
+                except Exception:
+                    pass
+                score_tex_id = None
+            surf = font.render(score_text, True, (255, 255, 255))
+            score_tex_w, score_tex_h = surf.get_width(), surf.get_height()
+            score_tex_id = surface_to_texture(surf)
+            score_prev_text = score_text
+
+        if score_tex_id is not None:
+            pad = 10
+            x_px = WIDTH - pad - score_tex_w
+            y_px = pad
+            # bygg et enkelt quad i px-koordinater
+            x0 = (2.0 * x_px) / WIDTH - 1.0
+            x1 = (2.0 * (x_px + score_tex_w)) / WIDTH - 1.0
+            y0 = 1.0 - 2.0 * (y_px / HEIGHT)
+            y1 = 1.0 - 2.0 * ((y_px + score_tex_h) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            verts = np.asarray(
+                [
+                    # top-left
+                    x0,
+                    y0,
+                    0.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    # bottom-left
+                    x0,
+                    y1,
+                    0.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    # top-right
+                    x1,
+                    y0,
+                    1.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    # top-right
+                    x1,
+                    y0,
+                    1.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    # bottom-left
+                    x0,
+                    y1,
+                    0.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    # bottom-right
+                    x1,
+                    y1,
+                    1.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                ],
+                dtype=np.float32,
+            ).reshape((-1, 8))
+            renderer.draw_arrays(verts, score_tex_id, use_tex=True)
+
         pygame.display.flip()
 
     pygame.quit()
+
+    # Frigi dynamisk tekstur ved avslutning
+    try:
+        if score_tex_id is not None:
+            gl.glDeleteTextures([score_tex_id])
+    except Exception:
+        pass
+
 
 if __name__ == "__main__":
     try:

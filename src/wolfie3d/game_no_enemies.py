@@ -44,8 +44,8 @@ FOV = 66 * math.pi / 180.0
 PLANE_LEN = math.tan(FOV / 2)
 
 # Bevegelse
-MOVE_SPEED = 3.0      # enheter/sek
-ROT_SPEED = 2.0       # rad/sek
+MOVE_SPEED = 3.0  # enheter/sek
+ROT_SPEED = 2.0  # rad/sek
 STRAFE_SPEED = 2.5
 
 # Tekstur-størrelse brukt på GPU (proseduralt generert)
@@ -56,26 +56,26 @@ FAR_PLANE = 100.0
 
 # Kart (0=tomt, >0=veggtype/tekstur-id)
 MAP: list[list[int]] = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,2,0,0,0,0,0,0,0,0,3,0,0,0,0,0,4,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,2,2,2,2,2,0,0,0,0,3,3,3,0,0,4,4,4,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 3, 3, 3, 0, 0, 4, 4, 4, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]
 MAP_W = len(MAP[0])
 MAP_H = len(MAP)
@@ -86,17 +86,23 @@ player_y = 10.5
 dir_x, dir_y = 1.0, 0.0
 plane_x, plane_y = 0.0, PLANE_LEN
 
+
 # ---------- Hjelpere ----------
 def in_map(ix: int, iy: int) -> bool:
     return 0 <= ix < MAP_W and 0 <= iy < MAP_H
 
+
 def is_wall(ix: int, iy: int) -> bool:
     return in_map(ix, iy) and MAP[iy][ix] > 0
 
+
 def clamp01(x: float) -> float:
-    if x < 0.0: return 0.0
-    if x > 1.0: return 1.0
+    if x < 0.0:
+        return 0.0
+    if x > 1.0:
+        return 1.0
     return x
+
 
 # ---------- Prosjektil ----------
 class Bullet:
@@ -121,6 +127,7 @@ class Bullet:
         self.age += dt
         self.height_param = min(0.65, self.height_param + 0.35 * dt)
 
+
 # ---------- Prosedural tekstur (pygame.Surface) ----------
 def make_brick_texture() -> pygame.Surface:
     surf = pygame.Surface((TEX_W, TEX_H))
@@ -139,6 +146,7 @@ def make_brick_texture() -> pygame.Surface:
         pygame.draw.line(surf, mortar, (x, 0), (x, TEX_H))
     return surf
 
+
 def make_stone_texture() -> pygame.Surface:
     surf = pygame.Surface((TEX_W, TEX_H))
     base = (110, 110, 120)
@@ -149,19 +157,21 @@ def make_stone_texture() -> pygame.Surface:
                 c = 90 + ((x * y) % 40)
                 surf.set_at((x, y), (c, c, c))
     for i in range(5):
-        pygame.draw.line(surf, (80, 80, 85), (i*12, 0), (TEX_W-1, TEX_H-1 - i*6), 1)
+        pygame.draw.line(surf, (80, 80, 85), (i * 12, 0), (TEX_W - 1, TEX_H - 1 - i * 6), 1)
     return surf
+
 
 def make_wood_texture() -> pygame.Surface:
     surf = pygame.Surface((TEX_W, TEX_H))
     for y in range(TEX_H):
         for x in range(TEX_W):
-            v = int(120 + 40 * math.sin((x + y*0.5) * 0.12) + 20 * math.sin(y * 0.3))
+            v = int(120 + 40 * math.sin((x + y * 0.5) * 0.12) + 20 * math.sin(y * 0.3))
             v = max(60, min(200, v))
             surf.set_at((x, y), (140, v, 60))
     for x in range(0, TEX_W, TEX_W // 4):
         pygame.draw.line(surf, (90, 60, 30), (x, 0), (x, TEX_H))
     return surf
+
 
 def make_metal_texture() -> pygame.Surface:
     surf = pygame.Surface((TEX_W, TEX_H), pygame.SRCALPHA)
@@ -172,14 +182,16 @@ def make_metal_texture() -> pygame.Surface:
             pygame.draw.circle(surf, (90, 95, 100, 255), (x, y), 2)
     for y in range(TEX_H):
         shade = 130 + (y % 8) * 2
-        pygame.draw.line(surf, (shade, shade, shade+5, 255), (0, y), (TEX_W, y), 1)
+        pygame.draw.line(surf, (shade, shade, shade + 5, 255), (0, y), (TEX_W, y), 1)
     return surf
+
 
 def make_bullet_texture() -> pygame.Surface:
     surf = pygame.Surface((32, 32), pygame.SRCALPHA)
     pygame.draw.circle(surf, (255, 240, 150, 220), (16, 16), 8)
     pygame.draw.circle(surf, (255, 255, 255, 255), (13, 13), 3)
     return surf
+
 
 # ---------- OpenGL utils ----------
 VS_SRC = """
@@ -225,6 +237,7 @@ void main() {
 }
 """
 
+
 def compile_shader(src: str, stage: int) -> int:
     sid = gl.glCreateShader(stage)
     gl.glShaderSource(sid, src)
@@ -234,6 +247,7 @@ def compile_shader(src: str, stage: int) -> int:
         log = gl.glGetShaderInfoLog(sid).decode()
         raise RuntimeError(f"Shader compile error:\n{log}")
     return sid
+
 
 def make_program(vs_src: str, fs_src: str) -> int:
     vs = compile_shader(vs_src, gl.GL_VERTEX_SHADER)
@@ -250,13 +264,16 @@ def make_program(vs_src: str, fs_src: str) -> int:
         raise RuntimeError(f"Program link error:\n{log}")
     return prog
 
+
 def surface_to_texture(surf: pygame.Surface) -> int:
     """Laster pygame.Surface til GL_TEXTURE_2D (RGBA8). Returnerer texture id."""
     data = pygame.image.tostring(surf.convert_alpha(), "RGBA", True)
     w, h = surf.get_width(), surf.get_height()
     tid = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_2D, tid)
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, w, h, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, data)
+    gl.glTexImage2D(
+        gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, w, h, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, data
+    )
     gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
@@ -264,16 +281,19 @@ def surface_to_texture(surf: pygame.Surface) -> int:
     gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
     return tid
 
+
 def make_white_texture() -> int:
     surf = pygame.Surface((1, 1), pygame.SRCALPHA)
     surf.fill((255, 255, 255, 255))
     return surface_to_texture(surf)
+
 
 # ---------- GL Renderer state ----------
 from pathlib import Path
 import os
 import pygame
 from OpenGL import GL as gl
+
 
 # ---------- GL Renderer state ----------
 class GLRenderer:
@@ -384,14 +404,16 @@ class GLRenderer:
             for m in missing:
                 print("  -", m)
             raise FileNotFoundError(
-                "Manglende teksturer. Sørg for at filene ligger i assets/textures/")
+                "Manglende teksturer. Sørg for at filene ligger i assets/textures/"
+            )
 
         def _load(path: Path, size: int = 512) -> int:
             print(f"[GLRenderer] Laster: {path}")
             surf = pygame.image.load(str(path)).convert_alpha()
             if surf.get_width() != size or surf.get_height() != size:
                 print(
-                    f"[GLRenderer]  - rescale {surf.get_width()}x{surf.get_height()} -> {size}x{size}")
+                    f"[GLRenderer]  - rescale {surf.get_width()}x{surf.get_height()} -> {size}x{size}"
+                )
                 surf = pygame.transform.smoothscale(surf, (size, size))
             tex_id = surface_to_texture(surf)
             print(f"[GLRenderer]  - OK (GL tex id {tex_id})")
@@ -423,6 +445,7 @@ class GLRenderer:
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         gl.glBindVertexArray(0)
 
+
 # ---------- Raycasting + bygg GL-verts ----------
 def column_ndc(x: int) -> tuple[float, float]:
     """Returnerer venstre/høyre NDC-X for en 1-px bred skjermkolonne."""
@@ -430,13 +453,16 @@ def column_ndc(x: int) -> tuple[float, float]:
     x_right = (2.0 * (x + 1)) / WIDTH - 1.0
     return x_left, x_right
 
+
 def y_ndc(y_pix: int) -> float:
     """Konverter skjerm-Y (0 top) til NDC-Y (1 top, -1 bunn)."""
     return 1.0 - 2.0 * (y_pix / float(HEIGHT))
 
+
 def dim_for_side(side: int) -> float:
     # dim litt på sidevegger (liknende BLEND_MULT tidligere)
     return 0.78 if side == 1 else 1.0
+
 
 def cast_and_build_wall_batches() -> dict[int, list[float]]:
     batches: dict[int, list[float]] = {1: [], 2: [], 3: [], 4: []}
@@ -485,10 +511,14 @@ def cast_and_build_wall_batches() -> dict[int, list[float]]:
                 tex_id = MAP[map_y][map_x]
 
         if side == 0:
-            perp_wall_dist = (map_x - player_x + (1 - step_x) / 2.0) / (ray_dir_x if ray_dir_x != 0 else 1e-9)
+            perp_wall_dist = (map_x - player_x + (1 - step_x) / 2.0) / (
+                ray_dir_x if ray_dir_x != 0 else 1e-9
+            )
             wall_x = player_y + perp_wall_dist * ray_dir_y
         else:
-            perp_wall_dist = (map_y - player_y + (1 - step_y) / 2.0) / (ray_dir_y if ray_dir_y != 0 else 1e-9)
+            perp_wall_dist = (map_y - player_y + (1 - step_y) / 2.0) / (
+                ray_dir_y if ray_dir_y != 0 else 1e-9
+            )
             wall_x = player_x + perp_wall_dist * ray_dir_x
 
         wall_x -= math.floor(wall_x)
@@ -518,22 +548,65 @@ def cast_and_build_wall_batches() -> dict[int, list[float]]:
         # [x, y, u, v, r, g, b, depth]
         v = [
             # tri 1
-            x_left,  top_ndc, u, 0.0, r, g, b, depth,
-            x_left,  bot_ndc, u, 1.0, r, g, b, depth,
-            x_right, top_ndc, u, 0.0, r, g, b, depth,
+            x_left,
+            top_ndc,
+            u,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x_left,
+            bot_ndc,
+            u,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x_right,
+            top_ndc,
+            u,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
             # tri 2
-            x_right, top_ndc, u, 0.0, r, g, b, depth,
-            x_left,  bot_ndc, u, 1.0, r, g, b, depth,
-            x_right, bot_ndc, u, 1.0, r, g, b, depth,
+            x_right,
+            top_ndc,
+            u,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x_left,
+            bot_ndc,
+            u,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x_right,
+            bot_ndc,
+            u,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
         ]
         batches.setdefault(tex_id, []).extend(v)
     return batches
 
+
 def build_fullscreen_background() -> np.ndarray:
     """To store quads (himmel/gulv), farget med vertex-color, tegnes uten tekstur."""
     # Himmel (øverst halvdel)
-    sky_col = (40/255.0, 60/255.0, 90/255.0)
-    floor_col = (35/255.0, 35/255.0, 35/255.0)
+    sky_col = (40 / 255.0, 60 / 255.0, 90 / 255.0)
+    floor_col = (35 / 255.0, 35 / 255.0, 35 / 255.0)
     verts: list[float] = []
 
     # Quad helper
@@ -541,20 +614,64 @@ def build_fullscreen_background() -> np.ndarray:
         r, g, b = col
         depth = 1.0  # lengst bak
         # u,v er 0 (vi bruker hvit 1x1 tekstur)
-        verts.extend([
-            x0, y0, 0.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y1, 1.0, 1.0, r, g, b, depth,
-        ])
+        verts.extend(
+            [
+                x0,
+                y0,
+                0.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y1,
+                1.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+            ]
+        )
 
     # Koordinater i NDC
-    add_quad(-1.0,  1.0,  1.0,  0.0, sky_col)   # øvre halvdel
-    add_quad(-1.0,  0.0,  1.0, -1.0, floor_col) # nedre halvdel
+    add_quad(-1.0, 1.0, 1.0, 0.0, sky_col)  # øvre halvdel
+    add_quad(-1.0, 0.0, 1.0, -1.0, floor_col)  # nedre halvdel
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
 
 def build_sprites_batch(bullets: list[Bullet]) -> np.ndarray:
     """Bygger ett quad per kule i skjermen (billboard), med depth."""
@@ -578,16 +695,16 @@ def build_sprites_batch(bullets: list[Bullet]) -> np.ndarray:
         # vertikal offset: "stiger"
         v_shift = int((0.5 - b.height_param) * sprite_h)
         draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
-        draw_end_y   = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
         # horisontal
         draw_start_x = -sprite_w // 2 + sprite_screen_x
-        draw_end_x   = draw_start_x + sprite_w
+        draw_end_x = draw_start_x + sprite_w
 
         # Klipp utenfor skjerm
         if draw_end_x < 0 or draw_start_x >= WIDTH:
             continue
         draw_start_x = max(0, draw_start_x)
-        draw_end_x   = min(WIDTH - 1, draw_end_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
 
         # Konverter til NDC
         x0 = (2.0 * draw_start_x) / WIDTH - 1.0
@@ -603,19 +720,63 @@ def build_sprites_batch(bullets: list[Bullet]) -> np.ndarray:
         u0, v0 = 0.0, 0.0
         u1, v1 = 1.0, 1.0
 
-        verts.extend([
-            x0, y0, u0, v0, r, g, bcol, depth,
-            x0, y1, u0, v1, r, g, bcol, depth,
-            x1, y0, u1, v0, r, g, bcol, depth,
-
-            x1, y0, u1, v0, r, g, bcol, depth,
-            x0, y1, u0, v1, r, g, bcol, depth,
-            x1, y1, u1, v1, r, g, bcol, depth,
-        ])
+        verts.extend(
+            [
+                x0,
+                y0,
+                u0,
+                v0,
+                r,
+                g,
+                bcol,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                bcol,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                bcol,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                bcol,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                bcol,
+                depth,
+                x1,
+                y1,
+                u1,
+                v1,
+                r,
+                g,
+                bcol,
+                depth,
+            ]
+        )
 
     if not verts:
         return np.zeros((0, 8), dtype=np.float32)
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
 
 def build_crosshair_quads(size_px: int = 8, thickness_px: int = 2) -> np.ndarray:
     """To små rektangler (horisontalt/vertikalt), sentrert i skjermen."""
@@ -632,30 +793,117 @@ def build_crosshair_quads(size_px: int = 8, thickness_px: int = 2) -> np.ndarray
     depth = 0.0  # helt foran
 
     # horisontal strek
-    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, size_px, thickness_px//2)
-    verts.extend([
-        x0, y0, 0.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y1, 1.0, 1.0, r, g, b, depth,
-    ])
+    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, size_px, thickness_px // 2)
+    verts.extend(
+        [
+            x0,
+            y0,
+            0.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y1,
+            1.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+        ]
+    )
 
     # vertikal strek
-    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, thickness_px//2, size_px)
-    verts.extend([
-        x0, y0, 0.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y1, 1.0, 1.0, r, g, b, depth,
-    ])
+    x0, y0, x1, y1 = rect_ndc(HALF_W, HALF_H, thickness_px // 2, size_px)
+    verts.extend(
+        [
+            x0,
+            y0,
+            0.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y0,
+            1.0,
+            0.0,
+            r,
+            g,
+            b,
+            depth,
+            x0,
+            y1,
+            0.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+            x1,
+            y1,
+            1.0,
+            1.0,
+            r,
+            g,
+            b,
+            depth,
+        ]
+    )
 
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
 
 def build_weapon_overlay(firing: bool, recoil_t: float) -> np.ndarray:
     """En enkel "pistolboks" nederst (farget quad), m/ liten recoil-bevegelse."""
@@ -675,15 +923,57 @@ def build_weapon_overlay(firing: bool, recoil_t: float) -> np.ndarray:
     r, g, b = (0.12, 0.12, 0.12)
     depth = 0.0
     verts = [
-        x0, y0, 0.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-
-        x1, y0, 1.0, 0.0, r, g, b, depth,
-        x0, y1, 0.0, 1.0, r, g, b, depth,
-        x1, y1, 1.0, 1.0, r, g, b, depth,
+        x0,
+        y0,
+        0.0,
+        0.0,
+        r,
+        g,
+        b,
+        depth,
+        x0,
+        y1,
+        0.0,
+        1.0,
+        r,
+        g,
+        b,
+        depth,
+        x1,
+        y0,
+        1.0,
+        0.0,
+        r,
+        g,
+        b,
+        depth,
+        x1,
+        y0,
+        1.0,
+        0.0,
+        r,
+        g,
+        b,
+        depth,
+        x0,
+        y1,
+        0.0,
+        1.0,
+        r,
+        g,
+        b,
+        depth,
+        x1,
+        y1,
+        1.0,
+        1.0,
+        r,
+        g,
+        b,
+        depth,
     ]
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
 
 def build_minimap_quads() -> np.ndarray:
     """Liten GL-basert minimap øverst til venstre."""
@@ -699,24 +989,68 @@ def build_minimap_quads() -> np.ndarray:
         x1 = (2.0 * (x_px + w_px)) / WIDTH - 1.0
         y0 = 1.0 - 2.0 * (y_px / HEIGHT)
         y1 = 1.0 - 2.0 * ((y_px + h_px) / HEIGHT)
-        verts.extend([
-            x0, y0, 0.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-            x1, y0, 1.0, 0.0, r, g, b, depth,
-            x0, y1, 0.0, 1.0, r, g, b, depth,
-            x1, y1, 1.0, 1.0, r, g, b, depth,
-        ])
+        verts.extend(
+            [
+                x0,
+                y0,
+                0.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                1.0,
+                0.0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                0.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y1,
+                1.0,
+                1.0,
+                r,
+                g,
+                b,
+                depth,
+            ]
+        )
 
     # Bakgrunn
-    add_quad_px(pad-2, pad-2, mm_w+4, mm_h+4, (0.1, 0.1, 0.1), 0.0)
+    add_quad_px(pad - 2, pad - 2, mm_w + 4, mm_h + 4, (0.1, 0.1, 0.1), 0.0)
 
     # Celler
     for y in range(MAP_H):
         for x in range(MAP_W):
             if MAP[y][x] > 0:
                 col = (0.86, 0.86, 0.86)
-                add_quad_px(pad + x*scale, pad + y*scale, scale-1, scale-1, col, 0.0)
+                add_quad_px(pad + x * scale, pad + y * scale, scale - 1, scale - 1, col, 0.0)
 
     # Spiller
     px = int(player_x * scale)
@@ -732,6 +1066,7 @@ def build_minimap_quads() -> np.ndarray:
 
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
+
 # ---------- Input/fysikk ----------
 def try_move(nx: float, ny: float) -> tuple[float, float]:
     if not is_wall(int(nx), int(player_y)):
@@ -743,6 +1078,7 @@ def try_move(nx: float, ny: float) -> tuple[float, float]:
     else:
         y = player_y
     return x, y
+
 
 def handle_input(dt: float) -> None:
     global player_x, player_y, dir_x, dir_y, plane_x, plane_y
@@ -779,6 +1115,7 @@ def handle_input(dt: float) -> None:
         nx = player_x + (-dir_y) * strafe
         ny = player_y + (dir_x) * strafe
         player_x, player_y = try_move(nx, ny)
+
 
 # ---------- Main ----------
 def main() -> None:
@@ -886,6 +1223,7 @@ def main() -> None:
         pygame.display.flip()
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     try:
