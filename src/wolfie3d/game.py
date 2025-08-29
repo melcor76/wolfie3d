@@ -1345,7 +1345,7 @@ def build_weapon_overlay(firing: bool, recoil_t: float) -> np.ndarray:
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
 
-def build_minimap_quads() -> np.ndarray:
+def build_minimap_quads(enemy_list: list[Enemy]) -> np.ndarray:
     """Liten GL-basert minimap øverst til venstre."""
     scale = 6
     mm_w = MAP_W * scale
@@ -1434,6 +1434,30 @@ def build_minimap_quads() -> np.ndarray:
     # for enkelhet: bare en liten boks på enden
     add_quad_px(pad + fx - 1, pad + fy - 1, 2, 2, (1.0, 0.3, 0.3), 0.0)
 
+    # Fiender (tydelige markører med mørk outline)
+    if enemy_list:
+        for e in enemy_list:
+            if not e.alive:
+                continue
+            ex = int(e.x * scale)
+            ey = int(e.y * scale)
+            # outline (sort) og fyllfarge pr type
+            if e.enemy_type == ENEMY_BLACK_HELMET:
+                col = (1.0, 0.2, 0.2)  # hard = rød
+            elif e.enemy_type == ENEMY_GREY_HELMET:
+                col = (1.0, 0.6, 0.0)  # medium = oransje
+            else:
+                col = (1.0, 1.0, 0.2)  # lett = gul
+            # lett puls ved skade (litt lysere)
+            if getattr(e, "hurt_t", 0.0) > 0.0:
+                col = (min(1.0, col[0] + 0.2), min(1.0, col[1] + 0.2), min(1.0, col[2] + 0.2))
+            # outline først (større)
+            add_quad_px(pad + ex - 4, pad + ey - 4, 9, 9, (0.0, 0.0, 0.0), 0.0)
+            # fyll (lys farge)
+            add_quad_px(pad + ex - 3, pad + ey - 3, 7, 7, col, 0.0)
+            # indre prikk (hvit) for ekstra kontrast
+            add_quad_px(pad + ex - 1, pad + ey - 1, 3, 3, (1.0, 1.0, 1.0), 0.0)
+
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
 
@@ -1507,6 +1531,7 @@ def main() -> None:
     # Score/tekst
     font = pygame.font.SysFont(None, 28)
     font_small = pygame.font.SysFont(None, 18)
+    font_big = pygame.font.SysFont(None, 64)
     score: int = 0
     score_prev_text: str = ""
     score_tex_id: int | None = None
@@ -1525,13 +1550,93 @@ def main() -> None:
     # Player health
     player_hp: float = float(PLAYER_MAX_HP)
 
-    enemies: list[Enemy] = [
-        Enemy(6.5, 10.5, ENEMY_BLACK_HELMET),  # Black uniform, 3 HP
-        Enemy(12.5, 12.5, ENEMY_GREY_HELMET),  # Grey uniform with helmet, 2 HP
-        Enemy(16.5, 6.5, ENEMY_GREY_NO_HELMET),  # Grey uniform no helmet, 1 HP
-        Enemy(8.5, 8.5, ENEMY_BLACK_HELMET),  # Another black uniform, 3 HP
-        Enemy(14.5, 4.5, ENEMY_GREY_NO_HELMET),  # Another no helmet, 1 HP
+    # Game over state
+    game_over = False
+    game_over_timer = 0.0
+    go_tex_id: int | None = None
+    go_tex_w = 0
+    go_tex_h = 0
+
+    # Waves: 10 waves total, increasing difficulty (easy → medium → hard)
+    # Note: Coordinates are chosen to be in open tiles (non-wall) of MAP.
+    enemy_waves: list[list[tuple[float, float, int]]] = [
+        # Wave 0: very easy — 2 easy enemies
+        [
+            (16.5, 6.5, ENEMY_GREY_NO_HELMET),
+            (14.5, 4.5, ENEMY_GREY_NO_HELMET),
+        ],
+        # Wave 1: easy — 3 easy enemies
+        [
+            (16.5, 6.5, ENEMY_GREY_NO_HELMET),
+            (14.5, 4.5, ENEMY_GREY_NO_HELMET),
+            (10.5, 2.5, ENEMY_GREY_NO_HELMET),
+        ],
+        # Wave 2: easy+ — 4 easy enemies
+        [
+            (16.5, 6.5, ENEMY_GREY_NO_HELMET),
+            (14.5, 4.5, ENEMY_GREY_NO_HELMET),
+            (10.5, 2.5, ENEMY_GREY_NO_HELMET),
+            (4.5, 6.5, ENEMY_GREY_NO_HELMET),
+        ],
+        # Wave 3: transition — 3 easy + 1 medium
+        [
+            (8.5, 8.5, ENEMY_GREY_NO_HELMET),
+            (10.5, 17.5, ENEMY_GREY_NO_HELMET),
+            (14.5, 15.5, ENEMY_GREY_NO_HELMET),
+            (7.5, 12.5, ENEMY_GREY_HELMET),
+        ],
+        # Wave 4: tougher mix — 2 easy + 2 medium
+        [
+            (16.5, 6.5, ENEMY_GREY_HELMET),
+            (8.5, 8.5, ENEMY_GREY_HELMET),
+            (14.5, 4.5, ENEMY_GREY_NO_HELMET),
+            (4.5, 6.5, ENEMY_GREY_NO_HELMET),
+        ],
+        # Wave 5: medium — 3 medium enemies
+        [
+            (7.5, 12.5, ENEMY_GREY_HELMET),
+            (15.5, 12.5, ENEMY_GREY_HELMET),
+            (9.5, 10.5, ENEMY_GREY_HELMET),
+        ],
+        # Wave 6: ramping up — 2 medium + 1 hard
+        [
+            (5.5, 8.5, ENEMY_GREY_HELMET),
+            (6.5, 10.5, ENEMY_GREY_HELMET),
+            (16.5, 6.5, ENEMY_BLACK_HELMET),
+        ],
+        # Wave 7: mixed heavy — 2 hard + 2 medium
+        [
+            (16.5, 6.5, ENEMY_BLACK_HELMET),
+            (15.5, 12.5, ENEMY_BLACK_HELMET),
+            (14.5, 15.5, ENEMY_GREY_HELMET),
+            (8.5, 14.5, ENEMY_GREY_HELMET),
+        ],
+        # Wave 8: hard — 3 hard enemies
+        [
+            (16.5, 6.5, ENEMY_BLACK_HELMET),
+            (15.5, 12.5, ENEMY_BLACK_HELMET),
+            (12.5, 8.5, ENEMY_BLACK_HELMET),
+        ],
+        # Wave 9: very hard — 3 hard + 3 medium
+        [
+            (16.5, 6.5, ENEMY_BLACK_HELMET),
+            (15.5, 12.5, ENEMY_BLACK_HELMET),
+            (12.5, 8.5, ENEMY_BLACK_HELMET),
+            (14.5, 15.5, ENEMY_GREY_HELMET),
+            (7.5, 12.5, ENEMY_GREY_HELMET),
+            (10.5, 17.5, ENEMY_GREY_HELMET),
+        ],
     ]
+    current_wave = 0
+    enemies: list[Enemy] = []
+
+    def spawn_wave(idx: int) -> None:
+        enemies.clear()
+        for x, y, t in enemy_waves[idx]:
+            enemies.append(Enemy(x, y, t))
+
+    spawn_wave(current_wave)
+    next_wave_delay = 0.0
 
     # Mus-capture (synlig cursor + crosshair)
     pygame.event.set_grab(True)
@@ -1606,6 +1711,18 @@ def main() -> None:
         if dps_total > 0.0 and player_hp > 0.0:
             player_hp = max(0.0, player_hp - dps_total * dt)
 
+        # Game over trigger
+        if (not game_over) and player_hp <= 0.0:
+            game_over = True
+            game_over_timer = 2.0
+            # Create texture once
+            try:
+                surf = font_big.render("GAME OVER", True, (255, 255, 255))
+                go_tex_w, go_tex_h = surf.get_width(), surf.get_height()
+                go_tex_id = surface_to_texture(surf)
+            except Exception:
+                go_tex_id = None
+
         # ---------- Render ----------
         gl.glViewport(0, 0, WIDTH, HEIGHT)
         gl.glClearColor(0.05, 0.07, 0.1, 1.0)
@@ -1650,7 +1767,7 @@ def main() -> None:
         renderer.draw_arrays(overlay, renderer.white_tex, use_tex=False)
 
         # Minimap
-        mm = build_minimap_quads()
+        mm = build_minimap_quads(enemies)
         renderer.draw_arrays(mm, renderer.white_tex, use_tex=False)
 
         # Health bar (øverst, midtstilt)
@@ -1914,7 +2031,89 @@ def main() -> None:
             ).reshape((-1, 8))
             renderer.draw_arrays(verts, score_tex_id, use_tex=True)
 
+        # Game over overlay (sentrert)
+        if game_over and go_tex_id is not None:
+            tx = HALF_W - go_tex_w // 2
+            ty = HALF_H - go_tex_h // 2
+            x0 = (2.0 * tx) / WIDTH - 1.0
+            x1 = (2.0 * (tx + go_tex_w)) / WIDTH - 1.0
+            y0 = 1.0 - 2.0 * (ty / HEIGHT)
+            y1 = 1.0 - 2.0 * ((ty + go_tex_h) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            go_verts = np.asarray(
+                [
+                    x0,
+                    y0,
+                    0.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x0,
+                    y1,
+                    0.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1,
+                    y0,
+                    1.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1,
+                    y0,
+                    1.0,
+                    1.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x0,
+                    y1,
+                    0.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                    x1,
+                    y1,
+                    1.0,
+                    0.0,
+                    r,
+                    g,
+                    b,
+                    depth,
+                ],
+                dtype=np.float32,
+            ).reshape((-1, 8))
+            renderer.draw_arrays(go_verts, go_tex_id, use_tex=True)
+
         pygame.display.flip()
+
+        # Wave progression (when all enemies are dead)
+        if not game_over:
+            if all((not e.alive) for e in enemies):
+                if next_wave_delay <= 0.0 and current_wave + 1 < len(enemy_waves):
+                    next_wave_delay = 1.0  # small pause before next wave
+                if next_wave_delay > 0.0:
+                    next_wave_delay -= dt
+                    if next_wave_delay <= 0.0:
+                        current_wave += 1
+                        spawn_wave(current_wave)
+
+        # Game over countdown -> exit
+        if game_over:
+            game_over_timer -= dt
+            if game_over_timer <= 0.0:
+                running = False
 
     pygame.quit()
 
@@ -1924,6 +2123,8 @@ def main() -> None:
             gl.glDeleteTextures([score_tex_id])
         if hp_tex_id is not None:
             gl.glDeleteTextures([hp_tex_id])
+        if go_tex_id is not None:
+            gl.glDeleteTextures([go_tex_id])
     except Exception:
         pass
 
