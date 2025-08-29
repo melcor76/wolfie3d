@@ -187,6 +187,25 @@ def make_shot_sound() -> pygame.mixer.Sound | None:
         return None
 
 
+def make_knife_sound() -> pygame.mixer.Sound | None:
+    snd = load_sound_asset("knife.wav", "knife.ogg", "swing.wav", "swing.ogg")
+    if snd is not None:
+        return snd
+    if not try_init_mixer():
+        return None
+    import numpy as _np
+    # Short whoosh
+    sr = _get_mixer_sr()
+    dur = 0.10
+    n = int(sr * dur)
+    t = _np.linspace(0, dur, n, endpoint=False)
+    env = _np.exp(-t * 30)
+    freq = 220 + 1800 * (1 - t / dur)
+    sig = 0.25 * env * _np.sin(2 * _np.pi * _np.cumsum(freq) / sr)
+    arr = _np.clip(sig * 32767, -32767, 32767).astype(_np.int16)
+    return pygame.mixer.Sound(buffer=arr.tobytes())
+
+
 def make_enemy_death_sound() -> pygame.mixer.Sound | None:
     """Prefer enemy death asset, else procedural cry."""
     snd = load_sound_asset("enemy_death.wav", "enemy_death.ogg")
@@ -396,6 +415,10 @@ ENEMY_SCORE: dict[int, int] = {
     ENEMY_BLACK_HELMET: 300,  # vanskelig
 }
 
+# Weapons
+WEAPON_PISTOL = 0
+WEAPON_KNIFE = 1
+
 
 class Enemy:
     def __init__(self, x: float, y: float, enemy_type: int = ENEMY_GREY_NO_HELMET) -> None:
@@ -577,6 +600,44 @@ def make_health_kit_texture() -> pygame.Surface:
 
 
 # ---------- OpenGL utils ----------
+def load_animated_webp(path: Path) -> tuple[list[int], tuple[int, int], list[float]] | None:
+    """Load an animated WebP into a list of GL texture ids and per-frame durations (seconds).
+    Composites frames so delta/disposal frames become fully opaque where expected.
+    Returns (frame_tex_ids, (w, h), durations) or None if not available.
+    """
+    try:
+        from PIL import Image, ImageSequence  # type: ignore
+    except Exception:
+        return None
+    try:
+        im = Image.open(str(path))
+    except Exception:
+        return None
+    frames: list[int] = []
+    durations: list[float] = []
+    w = h = 0
+    accum = None
+    for f in ImageSequence.Iterator(im):
+        try:
+            frame = f.convert("RGBA")
+            if accum is None:
+                w, h = frame.size
+                accum = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            # Composite this frame over the accumulated image
+            accum = Image.alpha_composite(accum, frame)
+            raw = accum.tobytes()
+            surf = pygame.image.frombuffer(raw, (w, h), "RGBA").convert_alpha()
+            tex = surface_to_texture(surf)
+            frames.append(tex)
+            dur_ms = f.info.get("duration", im.info.get("duration", 50))
+            durations.append(max(0.01, float(dur_ms) / 1000.0))
+        except Exception:
+            continue
+    if not frames:
+        return None
+    while len(durations) < len(frames):
+        durations.append(0.06)
+    return frames, (w, h), durations
 VS_SRC = """
 #version 330 core
 layout (location = 0) in vec2 in_pos;    // NDC -1..1
@@ -775,6 +836,103 @@ class GLRenderer:
             surf = pygame.transform.smoothscale(surf, (size, size))
         return surf
 
+
+    @staticmethod
+    def make_pistol_icon_surface() -> pygame.Surface:
+        """Tiny procedural pistol icon (transparent bg)."""
+        w, h = 48, 28
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Body
+        pygame.draw.rect(surf, (40, 40, 40, 255), pygame.Rect(8, 10, 24, 10))
+        # Barrel
+        pygame.draw.rect(surf, (60, 60, 60, 255), pygame.Rect(32, 12, 10, 6))
+        # Grip
+        pygame.draw.polygon(surf, (50, 50, 50, 255), [(12, 20), (18, 20), (16, 27), (10, 27)])
+        # Accent
+        pygame.draw.rect(surf, (110, 110, 110, 255), pygame.Rect(10, 12, 6, 2))
+        return surf
+
+
+    @staticmethod
+    def make_knife_icon_surface() -> pygame.Surface:
+        """Tiny procedural knife icon (transparent bg)."""
+        w, h = 48, 28
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Blade
+        pygame.draw.polygon(surf, (200, 200, 210, 255), [(8, 14), (34, 10), (34, 18)])
+        # Edge line
+        pygame.draw.line(surf, (240, 240, 245, 200), (9, 14), (33, 12), 1)
+        # Guard
+        pygame.draw.rect(surf, (80, 80, 80, 255), pygame.Rect(34, 12, 2, 6))
+        # Handle
+        pygame.draw.rect(surf, (100, 70, 50, 255), pygame.Rect(36, 12, 8, 6))
+        # Pommel
+        pygame.draw.rect(surf, (70, 50, 35, 255), pygame.Rect(44, 13, 2, 4))
+        return surf
+
+
+    @staticmethod
+    def make_pistol_viewmodel_surface() -> pygame.Surface:
+        """Procedural first-person pistol sprite (transparent bg)."""
+        w, h = 220, 140
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Grip and hand area (lower-left)
+        pygame.draw.polygon(surf, (95, 75, 60, 255), [(28, 110), (62, 110), (52, 138), (22, 138)])
+        # Frame/slide
+        pygame.draw.rect(surf, (50, 50, 55, 255), pygame.Rect(70, 70, 120, 26))
+        # Barrel extension
+        pygame.draw.rect(surf, (70, 70, 75, 255), pygame.Rect(190, 76, 18, 14))
+        # Highlights
+        pygame.draw.rect(surf, (120, 120, 125, 160), pygame.Rect(74, 74, 50, 4))
+        pygame.draw.rect(surf, (140, 140, 145, 120), pygame.Rect(130, 80, 46, 3))
+        # Trigger guard
+        pygame.draw.arc(surf, (40, 40, 40, 255), pygame.Rect(62, 92, 26, 20), 3.6, 2.0, 3)
+        return surf
+
+
+    @staticmethod
+    def make_knife_viewmodel_surface() -> pygame.Surface:
+        """Procedural first-person knife sprite (transparent bg)."""
+        w, h = 220, 140
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Handle (right side)
+        pygame.draw.rect(surf, (110, 80, 60, 255), pygame.Rect(130, 92, 60, 14))
+        # Guard
+        pygame.draw.rect(surf, (80, 80, 80, 255), pygame.Rect(124, 88, 6, 22))
+        # Blade (towards left)
+        pygame.draw.polygon(surf, (210, 210, 220, 255), [(24, 90), (125, 84), (125, 112), (24, 104)])
+        # Edge highlight
+        pygame.draw.line(surf, (240, 240, 245, 200), (26, 97), (123, 88), 2)
+        return surf
+
+
+    @staticmethod
+    def make_muzzle_flash_surface() -> pygame.Surface:
+        """Small bright muzzle flash."""
+        w, h = 56, 56
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        center = (w // 2, h // 2)
+        # Burst star
+        pygame.draw.circle(surf, (255, 240, 180, 220), center, 10)
+        pygame.draw.polygon(surf, (255, 220, 140, 220), [(28, 4), (34, 22), (52, 28), (34, 34), (28, 52), (22, 34), (4, 28), (22, 22)])
+        # Soft glow
+        glow = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (255, 200, 120, 90), center, 22)
+        surf.blit(glow, (0, 0))
+        return surf
+
+
+    @staticmethod
+    def make_slash_arc_surface() -> pygame.Surface:
+        """Curved slash trail for knife swing."""
+        w, h = 160, 140
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Draw multiple translucent arcs to fake a motion trail
+        for i, a in enumerate([255, 180, 110, 60]):
+            rect = pygame.Rect(0 + i*6, 10 + i*6, w - i*12, h - i*12)
+            pygame.draw.arc(surf, (230, 230, 240, a), rect, 3.8, 5.6, 6)
+        return surf
+
     def _load_texture_file(self, path: str, size: int = 512) -> int:
         surf = pygame.image.load(path).convert_alpha()
         surf = self._scale_if_needed(surf, size)
@@ -845,6 +1003,46 @@ class GLRenderer:
             tex_id = surface_to_texture(surf)
             print(f"[GLRenderer]  - OK (GL tex id {tex_id})")
             return tex_id
+
+
+        def load_animated_webp(path: Path) -> tuple[list[int], tuple[int, int], list[float]] | None:
+            """Load an animated WebP into a list of GL texture ids and per-frame durations (seconds).
+            Composites frames so delta/disposal frames become fully opaque where expected.
+            Returns (frame_tex_ids, (w, h), durations) or None if not available.
+            """
+            try:
+                from PIL import Image, ImageSequence  # type: ignore
+            except Exception:
+                return None
+            try:
+                im = Image.open(str(path))
+            except Exception:
+                return None
+            frames: list[int] = []
+            durations: list[float] = []
+            w = h = 0
+            accum = None
+            for f in ImageSequence.Iterator(im):
+                try:
+                    frame = f.convert("RGBA")
+                    if accum is None:
+                        w, h = frame.size
+                        accum = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+                    # Composite this frame over the accumulated image
+                    accum = Image.alpha_composite(accum, frame)
+                    raw = accum.tobytes()
+                    surf = pygame.image.frombuffer(raw, (w, h), "RGBA").convert_alpha()
+                    tex = surface_to_texture(surf)
+                    frames.append(tex)
+                    dur_ms = f.info.get("duration", im.info.get("duration", 50))
+                    durations.append(max(0.01, float(dur_ms) / 1000.0))
+                except Exception:
+                    continue
+            if not frames:
+                return None
+            while len(durations) < len(frames):
+                durations.append(0.06)
+            return frames, (w, h), durations
 
         self.textures[1] = _load(files[1], 512)
         self.textures[2] = _load(files[2], 512)
@@ -1836,22 +2034,27 @@ def build_crosshair_quads(size_px: int = 8, thickness_px: int = 2) -> np.ndarray
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
 
-def build_weapon_overlay(firing: bool, recoil_t: float) -> np.ndarray:
-    """En enkel "pistolboks" nederst (farget quad), m/ liten recoil-bevegelse."""
-    base_w, base_h = 200, 120
+def build_weapon_overlay(firing: bool, recoil_t: float, weapon: int, knife_t: float) -> np.ndarray:
+    """Simple overlay for current weapon: pistol block vs knife wedge."""
+    base_w, base_h = 220, 130
     x = HALF_W - base_w // 2
     y = HEIGHT - base_h - 10
-    if firing:
+    if weapon == WEAPON_PISTOL and firing:
         y += int(6 * math.sin(min(1.0, recoil_t) * math.pi))
+    if weapon == WEAPON_KNIFE and knife_t > 0.0:
+        # swing arc visual shift
+        x += int(10 * math.sin(min(1.0, knife_t / 0.35) * math.pi))
 
     x0 = (2.0 * x) / WIDTH - 1.0
     x1 = (2.0 * (x + base_w)) / WIDTH - 1.0
     y0 = 1.0 - 2.0 * (y / HEIGHT)
     y1 = 1.0 - 2.0 * ((y + base_h) / HEIGHT)
 
-    # lett gjennomsiktig mørk grå
-    # vi bruker v_col for RGB, alpha kommer fra tekstur (1x1 hvit, a=1). For alpha: n.a. her.
-    r, g, b = (0.12, 0.12, 0.12)
+    # base color depends on weapon
+    if weapon == WEAPON_PISTOL:
+        r, g, b = (0.12, 0.12, 0.12)
+    else:
+        r, g, b = (0.10, 0.15, 0.10)
     depth = 0.0
     verts = [
         x0,
@@ -2107,6 +2310,9 @@ def main() -> None:
     bullets: list[Bullet] = []
     firing = False
     recoil_t = 0.0
+    # Weapon state
+    current_weapon = WEAPON_PISTOL
+    knife_cooldown = 0.0
 
     # Ammo system
     ammo: int = 10
@@ -2116,6 +2322,7 @@ def main() -> None:
     # sounds (best-effort)
     pickup_snd = make_pickup_sound()
     shot_snd = make_shot_sound()
+    knife_snd = make_knife_sound()
     death_snd = make_enemy_death_sound()
     player_death_snd = make_player_death_sound()
     injured_snd = load_sound_asset("injured.wav", "injured.ogg")
@@ -2126,6 +2333,40 @@ def main() -> None:
     ammo_tex_w = 0
     ammo_tex_h = 0
 
+    # Weapon icons & hint texture ids
+    pistol_icon_tex: int | None = None
+    knife_icon_tex: int | None = None
+    pistol_icon_size = (0, 0)
+    knife_icon_size = (0, 0)
+    hint_tex_id: int | None = None
+    hint_tex_w = 0
+    hint_tex_h = 0
+
+    # Viewmodel textures and sizes
+    pistol_vm_tex: int | None = None
+    knife_vm_tex: int | None = None
+    pistol_vm_size = (0, 0)
+    knife_vm_size = (0, 0)
+    # Optional animated frames
+    pistol_anim_frames: list[int] = []
+    pistol_anim_sizes: tuple[int, int] = (0, 0)
+    pistol_anim_durs: list[float] = []
+    pistol_anim_t = 0.0
+    pistol_anim_idx = 0
+    knife_anim_frames: list[int] = []
+    knife_anim_sizes: tuple[int, int] = (0, 0)
+    knife_anim_durs: list[float] = []
+    knife_anim_t = 0.0
+    knife_anim_idx = 0
+    # Effect textures
+    muzzle_tex: int | None = None
+    muzzle_size = (0, 0)
+    slash_tex: int | None = None
+    slash_size = (0, 0)
+    # Animation timers
+    muzzle_timer = 0.0  # seconds remaining to show muzzle flash
+    slash_timer = 0.0   # seconds remaining to show slash arc
+
     # Player health
     player_hp: float = float(PLAYER_MAX_HP)
 
@@ -2135,6 +2376,171 @@ def main() -> None:
     go_tex_id: int | None = None
     go_tex_w = 0
     go_tex_h = 0
+
+    # Build weapon icon textures
+    try:
+        p_surf = GLRenderer.make_pistol_icon_surface()
+        pistol_icon_size = (p_surf.get_width(), p_surf.get_height())
+        pistol_icon_tex = surface_to_texture(p_surf)
+    except Exception:
+        pistol_icon_tex = None
+        pistol_icon_size = (0, 0)
+    try:
+        k_surf = GLRenderer.make_knife_icon_surface()
+        knife_icon_size = (k_surf.get_width(), k_surf.get_height())
+        knife_icon_tex = surface_to_texture(k_surf)
+    except Exception:
+        knife_icon_tex = None
+        knife_icon_size = (0, 0)
+
+    # Build 'Q: Toggle weapon' hint texture
+    # Build viewmodel and effect textures
+    try:
+        # Try animated pistol first
+        textures_dir = renderer._resolve_textures_base()
+        ap = textures_dir / "Animated_Pistol.webp"
+        anim = load_animated_webp(ap)
+        if anim is not None:
+            pistol_anim_frames, pistol_anim_sizes, pistol_anim_durs = anim
+            print(f"[Weapons] Using animated pistol ({len(pistol_anim_frames)} frames) from {ap}")
+        if not pistol_anim_frames:
+            # Avoid loading Animated_* as static (may be partial/delta -> invisible). Try alternatives or procedural.
+            alt_names = ["Pistol.png", "pistol.png", "Pistol.webp", "pistol.webp"]
+            chosen = None
+            for name in alt_names:
+                p = textures_dir / name
+                if p.exists():
+                    try:
+                        _surf = pygame.image.load(str(p)).convert_alpha()
+                        chosen = p
+                        break
+                    except Exception:
+                        continue
+            if chosen is not None:
+                max_dim = 512
+                if _surf.get_width() > max_dim or _surf.get_height() > max_dim:
+                    scale = min(max_dim / _surf.get_width(), max_dim / _surf.get_height())
+                    _surf = pygame.transform.smoothscale(
+                        _surf, (int(_surf.get_width() * scale), int(_surf.get_height() * scale))
+                    )
+                pistol_vm_size = (_surf.get_width(), _surf.get_height())
+                pistol_vm_tex = surface_to_texture(_surf)
+                print(f"[Weapons] Using static pistol from {chosen}")
+            else:
+                pv = GLRenderer.make_pistol_viewmodel_surface()
+                pistol_vm_size = (pv.get_width(), pv.get_height())
+                pistol_vm_tex = surface_to_texture(pv)
+                if ap.exists():
+                    print("[Weapons] Animated_Pistol.webp present but no PIL; using procedural pistol viewmodel")
+                else:
+                    print("[Weapons] No pistol asset found; using procedural pistol viewmodel")
+    except Exception:
+        try:
+            pv = GLRenderer.make_pistol_viewmodel_surface()
+            pistol_vm_size = (pv.get_width(), pv.get_height())
+            pistol_vm_tex = surface_to_texture(pv)
+        except Exception:
+            pistol_vm_tex = None
+            pistol_vm_size = (0, 0)
+    try:
+        # Try animated knife first
+        textures_dir = renderer._resolve_textures_base()
+        ak = textures_dir / "Animated_Knife.webp"
+        anim = load_animated_webp(ak)
+        if anim is not None:
+            knife_anim_frames, knife_anim_sizes, knife_anim_durs = anim
+            print(f"[Weapons] Using animated knife ({len(knife_anim_frames)} frames) from {ak}")
+        if not knife_anim_frames:
+            alt_names = ["Knife.png", "knife.png", "Knife.webp", "knife.webp"]
+            chosen = None
+            for name in alt_names:
+                p = textures_dir / name
+                if p.exists():
+                    try:
+                        _surf = pygame.image.load(str(p)).convert_alpha()
+                        chosen = p
+                        break
+                    except Exception:
+                        continue
+            if chosen is not None:
+                max_dim = 512
+                if _surf.get_width() > max_dim or _surf.get_height() > max_dim:
+                    scale = min(max_dim / _surf.get_width(), max_dim / _surf.get_height())
+                    _surf = pygame.transform.smoothscale(
+                        _surf, (int(_surf.get_width() * scale), int(_surf.get_height() * scale))
+                    )
+                knife_vm_size = (_surf.get_width(), _surf.get_height())
+                knife_vm_tex = surface_to_texture(_surf)
+                print(f"[Weapons] Using static knife from {chosen}")
+            else:
+                kv = GLRenderer.make_knife_viewmodel_surface()
+                knife_vm_size = (kv.get_width(), kv.get_height())
+                knife_vm_tex = surface_to_texture(kv)
+                if ak.exists():
+                    print("[Weapons] Animated_Knife.webp present but no PIL; using procedural knife viewmodel")
+                else:
+                    print("[Weapons] No knife asset found; using procedural knife viewmodel")
+    except Exception:
+        try:
+            kv = GLRenderer.make_knife_viewmodel_surface()
+            knife_vm_size = (kv.get_width(), kv.get_height())
+            knife_vm_tex = surface_to_texture(kv)
+        except Exception:
+            knife_vm_tex = None
+            knife_vm_size = (0, 0)
+    try:
+        mf = GLRenderer.make_muzzle_flash_surface()
+        muzzle_size = (mf.get_width(), mf.get_height())
+        muzzle_tex = surface_to_texture(mf)
+    except Exception:
+        muzzle_tex = None
+        muzzle_size = (0, 0)
+    try:
+        sl = GLRenderer.make_slash_arc_surface()
+        slash_size = (sl.get_width(), sl.get_height())
+        slash_tex = surface_to_texture(sl)
+    except Exception:
+        slash_tex = None
+        slash_size = (0, 0)
+
+    # Post-load validation/logging for weapon viewmodels
+    try:
+        pist_anim_n = len(pistol_anim_frames)
+    except Exception:
+        pist_anim_n = 0
+    if pist_anim_n == 0 and pistol_vm_tex is None:
+        # Ensure we have something to draw
+        try:
+            pv = GLRenderer.make_pistol_viewmodel_surface()
+            pistol_vm_size = (pv.get_width(), pv.get_height())
+            pistol_vm_tex = surface_to_texture(pv)
+            print("[Weapons] Pistol: using procedural viewmodel (no frames/texture)")
+        except Exception:
+            print("[Weapons] Pistol: FAILED to build any viewmodel")
+    else:
+        print(f"[Weapons] Pistol ready: frames={pist_anim_n} tex={pistol_vm_tex}")
+
+    try:
+        knf_anim_n = len(knife_anim_frames)
+    except Exception:
+        knf_anim_n = 0
+    if knf_anim_n == 0 and knife_vm_tex is None:
+        try:
+            kv = GLRenderer.make_knife_viewmodel_surface()
+            knife_vm_size = (kv.get_width(), kv.get_height())
+            knife_vm_tex = surface_to_texture(kv)
+            print("[Weapons] Knife: using procedural viewmodel (no frames/texture)")
+        except Exception:
+            print("[Weapons] Knife: FAILED to build any viewmodel")
+    else:
+        print(f"[Weapons] Knife ready: frames={knf_anim_n} tex={knife_vm_tex}")
+    try:
+        hint_surf = font_small.render("Q: Toggle weapon (1=Pistol, 2=Knife)", True, (220, 220, 220))
+        hint_tex_w, hint_tex_h = hint_surf.get_width(), hint_surf.get_height()
+        hint_tex_id = surface_to_texture(hint_surf)
+    except Exception:
+        hint_tex_id = None
+        hint_tex_w = hint_tex_h = 0
 
     # Waves: 10 waves total, increasing difficulty (easy → medium → hard)
     # Note: Coordinates are chosen to be in open tiles (non-wall) of MAP.
@@ -2236,22 +2642,82 @@ def main() -> None:
                     print("Mouse grab:", grab)
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                if event.key == pygame.K_SPACE and ammo > 0:
-                    bx = player_x + dir_x * 0.4
-                    by = player_y + dir_y * 0.4
-                    bvx = dir_x * 10.0
-                    bvy = dir_y * 10.0
-                    bullets.append(Bullet(bx, by, bvx, bvy))
-                    firing = True
-                    recoil_t = 0.0
-                    ammo -= 1
-                    try:
-                        if shot_snd is not None:
-                            shot_snd.play()
-                    except Exception:
-                        pass
+                # Quick weapon select/toggle
+                if event.key == pygame.K_1:
+                    current_weapon = WEAPON_PISTOL
+                elif event.key == pygame.K_2:
+                    current_weapon = WEAPON_KNIFE
+                elif event.key == pygame.K_q:
+                    current_weapon = WEAPON_KNIFE if current_weapon == WEAPON_PISTOL else WEAPON_PISTOL
+                if event.key == pygame.K_SPACE:
+                    if current_weapon == WEAPON_PISTOL and ammo > 0:
+                        bx = player_x + dir_x * 0.4
+                        by = player_y + dir_y * 0.4
+                        bvx = dir_x * 10.0
+                        bvy = dir_y * 10.0
+                        bullets.append(Bullet(bx, by, bvx, bvy))
+                        firing = True
+                        recoil_t = 0.0
+                        ammo -= 1
+                        muzzle_timer = 0.06
+                        try:
+                            if shot_snd is not None:
+                                shot_snd.play()
+                        except Exception:
+                            pass
+                    elif current_weapon == WEAPON_KNIFE and knife_cooldown <= 0.0:
+                        # Knife swing melee
+                        knife_cooldown = 0.35
+                        slash_timer = 0.18
+                        # simple melee: hit the closest enemy in a short arc in front
+                        best = None
+                        best_d = 1e9
+                        for e in enemies:
+                            if not e.alive:
+                                continue
+                            dx = e.x - player_x
+                            dy = e.y - player_y
+                            dist = math.hypot(dx, dy)
+                            if dist > 1.2:
+                                continue
+                            # check angle within ~50 degrees cone
+                            fwd_dot = (dx * dir_x + dy * dir_y) / (dist + 1e-9)
+                            if fwd_dot < math.cos(math.radians(50)):
+                                continue
+                            if dist < best_d:
+                                best_d = dist
+                                best = e
+                        if best is not None:
+                            died = best.take_damage(1)
+                            if died:
+                                score += ENEMY_SCORE.get(best.enemy_type, 100)
+                                score_prev_text = ""
+                                try:
+                                    if death_snd is not None:
+                                        death_snd.play()
+                                except Exception:
+                                    pass
+                                death_fx.append(EnemyDeathFX(best.x, best.y, best.enemy_type))
+                                if random.random() < 0.2:
+                                    if best.enemy_type == ENEMY_BLACK_HELMET:
+                                        lo, hi = 4, 6
+                                    elif best.enemy_type == ENEMY_GREY_HELMET:
+                                        lo, hi = 3, 5
+                                    else:
+                                        lo, hi = 2, 4
+                                    amt = random.randint(lo, hi)
+                                    pickups.append(AmmoBox(best.x, best.y, amt))
+                                if random.random() < 0.10:
+                                    heal_pct = random.uniform(0.20, 0.40)
+                                    heal_abs = heal_pct * PLAYER_MAX_HP
+                                    healthkits.append(HealthKit(best.x, best.y, heal_abs))
+                        try:
+                            if knife_snd is not None:
+                                knife_snd.play()
+                        except Exception:
+                            pass
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if ammo > 0:
+                if current_weapon == WEAPON_PISTOL and ammo > 0:
                     bx = player_x + dir_x * 0.4
                     by = player_y + dir_y * 0.4
                     bvx = dir_x * 10.0
@@ -2265,8 +2731,32 @@ def main() -> None:
                             shot_snd.play()
                     except Exception:
                         pass
+                elif current_weapon == WEAPON_KNIFE and knife_cooldown <= 0.0:
+                    # trigger swing via space logic
+                    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
 
         handle_input(dt)
+        # auto-switch to knife only when pistol runs out of ammo
+        if ammo <= 0 and current_weapon == WEAPON_PISTOL:
+            current_weapon = WEAPON_KNIFE
+        # update knife cooldown
+        if knife_cooldown > 0.0:
+            knife_cooldown = max(0.0, knife_cooldown - dt)
+        if muzzle_timer > 0.0:
+            muzzle_timer = max(0.0, muzzle_timer - dt)
+        if slash_timer > 0.0:
+            slash_timer = max(0.0, slash_timer - dt)
+        # Advance viewmodel animations (looping)
+        if pistol_anim_frames:
+                pistol_anim_t += dt
+                if pistol_anim_t >= (pistol_anim_durs[pistol_anim_idx] if pistol_anim_durs else 0.06):
+                    pistol_anim_t = 0.0
+                    pistol_anim_idx = (pistol_anim_idx + 1) % len(pistol_anim_frames)
+        if knife_anim_frames:
+                knife_anim_t += dt
+                if knife_anim_t >= (knife_anim_durs[knife_anim_idx] if knife_anim_durs else 0.06):
+                    knife_anim_t = 0.0
+                    knife_anim_idx = (knife_anim_idx + 1) % len(knife_anim_frames)
 
         # Oppdater bullets
         for b in bullets:
@@ -2458,17 +2948,183 @@ def main() -> None:
         cross = build_crosshair_quads(8, 2)
         renderer.draw_arrays(cross, renderer.white_tex, use_tex=False)
 
-        # Weapon overlay
+        # Disable depth test for HUD/viewmodel to ensure visibility over world
+        gl.glDisable(gl.GL_DEPTH_TEST)
+
+        # Weapon overlay box (removed)
         if firing:
             recoil_t += dt
             if recoil_t > 0.15:
                 firing = False
-        overlay = build_weapon_overlay(firing, recoil_t)
-        renderer.draw_arrays(overlay, renderer.white_tex, use_tex=False)
+
+        # Viewmodel rendering (pistol/knife) with simple offsets for recoil/swing
+        # Always draw at a fixed on-screen size so large source textures don't push off-screen
+        vm_base_w, vm_base_h = 220, 140
+        # Bottom-center placement
+        vm_x = HALF_W - vm_base_w // 2
+        vm_y = HEIGHT - vm_base_h - 6
+        # Apply simple recoil/swing offsets
+        if current_weapon == WEAPON_PISTOL and firing:
+            vm_y += int(5 * math.sin(min(1.0, recoil_t) * math.pi))
+        if current_weapon == WEAPON_KNIFE and knife_cooldown > 0.0:
+            swing_phase = 1.0 - (knife_cooldown / 0.35)
+            vm_x += int(12 * math.sin(swing_phase * math.pi))
+            vm_y += int(6 * math.sin(swing_phase * math.pi))
+
+        vm_drawn = False
+
+        # Draw weapon viewmodel
+        if current_weapon == WEAPON_PISTOL and (pistol_vm_tex is not None or pistol_anim_frames):
+            if pistol_anim_frames:
+                tex = pistol_anim_frames[pistol_anim_idx]
+            else:
+                tex = pistol_vm_tex  # type: ignore
+            draw_w, draw_h = vm_base_w, vm_base_h
+            vx0 = (2.0 * vm_x) / WIDTH - 1.0
+            vx1 = (2.0 * (vm_x + draw_w)) / WIDTH - 1.0
+            vy0 = 1.0 - 2.0 * (vm_y / HEIGHT)
+            vy1 = 1.0 - 2.0 * ((vm_y + draw_h) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            verts_vm = np.asarray([
+                vx0, vy0, 0.0, 1.0, r, g, b, depth,
+                vx0, vy1, 0.0, 0.0, r, g, b, depth,
+                vx1, vy0, 1.0, 1.0, r, g, b, depth,
+                vx1, vy0, 1.0, 1.0, r, g, b, depth,
+                vx0, vy1, 0.0, 0.0, r, g, b, depth,
+                vx1, vy1, 1.0, 0.0, r, g, b, depth,
+            ], dtype=np.float32).reshape((-1, 8))
+            renderer.draw_arrays(verts_vm, tex, use_tex=True)
+            vm_drawn = True
+            # Debug outline removed
+            # Muzzle flash at barrel
+            if muzzle_timer > 0.0 and muzzle_tex is not None:
+                mw, mh = muzzle_size
+                mx = vm_x + draw_w - 26
+                my = vm_y + 18
+                mx0 = (2.0 * mx) / WIDTH - 1.0
+                mx1 = (2.0 * (mx + mw)) / WIDTH - 1.0
+                my0 = 1.0 - 2.0 * (my / HEIGHT)
+                my1 = 1.0 - 2.0 * ((my + mh) / HEIGHT)
+                verts_mz = np.asarray([
+                    mx0, my0, 0.0, 1.0, r, g, b, depth,
+                    mx0, my1, 0.0, 0.0, r, g, b, depth,
+                    mx1, my0, 1.0, 1.0, r, g, b, depth,
+                    mx1, my0, 1.0, 1.0, r, g, b, depth,
+                    mx0, my1, 0.0, 0.0, r, g, b, depth,
+                    mx1, my1, 1.0, 0.0, r, g, b, depth,
+                ], dtype=np.float32).reshape((-1, 8))
+                renderer.draw_arrays(verts_mz, muzzle_tex, use_tex=True)
+        elif current_weapon == WEAPON_KNIFE and (knife_vm_tex is not None or knife_anim_frames):
+            if knife_anim_frames:
+                tex = knife_anim_frames[knife_anim_idx]
+            else:
+                tex = knife_vm_tex  # type: ignore
+            draw_w, draw_h = vm_base_w, vm_base_h
+            vx0 = (2.0 * vm_x) / WIDTH - 1.0
+            vx1 = (2.0 * (vm_x + draw_w)) / WIDTH - 1.0
+            vy0 = 1.0 - 2.0 * (vm_y / HEIGHT)
+            vy1 = 1.0 - 2.0 * ((vm_y + draw_h) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            verts_vm = np.asarray([
+                vx0, vy0, 0.0, 1.0, r, g, b, depth,
+                vx0, vy1, 0.0, 0.0, r, g, b, depth,
+                vx1, vy0, 1.0, 1.0, r, g, b, depth,
+                vx1, vy0, 1.0, 1.0, r, g, b, depth,
+                vx0, vy1, 0.0, 0.0, r, g, b, depth,
+                vx1, vy1, 1.0, 0.0, r, g, b, depth,
+            ], dtype=np.float32).reshape((-1, 8))
+            renderer.draw_arrays(verts_vm, tex, use_tex=True)
+            vm_drawn = True
+            # Debug outline removed
+
+        # Slash arc during swing (draw over the weapon when visible)
+        if vm_drawn and slash_timer > 0.0 and slash_tex is not None:
+            sw, sh = slash_size
+            sx = vm_x - 20
+            sy = vm_y - 10
+            sx0 = (2.0 * sx) / WIDTH - 1.0
+            sx1 = (2.0 * (sx + sw)) / WIDTH - 1.0
+            sy0 = 1.0 - 2.0 * (sy / HEIGHT)
+            sy1 = 1.0 - 2.0 * ((sy + sh) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            verts_sl = np.asarray([
+                sx0, sy0, 0.0, 1.0, r, g, b, depth,
+                sx0, sy1, 0.0, 0.0, r, g, b, depth,
+                sx1, sy0, 1.0, 1.0, r, g, b, depth,
+                sx1, sy0, 1.0, 1.0, r, g, b, depth,
+                sx0, sy1, 0.0, 0.0, r, g, b, depth,
+                sx1, sy1, 1.0, 0.0, r, g, b, depth,
+            ], dtype=np.float32).reshape((-1, 8))
+            renderer.draw_arrays(verts_sl, slash_tex, use_tex=True)
 
         # Minimap
         mm = build_minimap_quads(enemies)
         renderer.draw_arrays(mm, renderer.white_tex, use_tex=False)
+
+        # Weapon icons (bottom-left area near HP bar)
+        # Compute base position to the left of HP bar
+        icon_pad = 10
+        icon_y = 8  # match HP HUD pad
+        if current_weapon == WEAPON_PISTOL and pistol_icon_tex is not None:
+            iw, ih = pistol_icon_size
+            ix = HALF_W - 300 // 2 - icon_pad - iw
+            x0i = (2.0 * ix) / WIDTH - 1.0
+            x1i = (2.0 * (ix + iw)) / WIDTH - 1.0
+            y0i = 1.0 - 2.0 * (icon_y / HEIGHT)
+            y1i = 1.0 - 2.0 * ((icon_y + ih) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            icon_verts = np.asarray([
+                x0i, y0i, 0.0, 1.0, r, g, b, depth,
+                x0i, y1i, 0.0, 0.0, r, g, b, depth,
+                x1i, y0i, 1.0, 1.0, r, g, b, depth,
+                x1i, y0i, 1.0, 1.0, r, g, b, depth,
+                x0i, y1i, 0.0, 0.0, r, g, b, depth,
+                x1i, y1i, 1.0, 0.0, r, g, b, depth,
+            ], dtype=np.float32).reshape((-1, 8))
+            renderer.draw_arrays(icon_verts, pistol_icon_tex, use_tex=True)
+        elif current_weapon == WEAPON_KNIFE and knife_icon_tex is not None:
+            iw, ih = knife_icon_size
+            ix = HALF_W - 300 // 2 - icon_pad - iw
+            x0i = (2.0 * ix) / WIDTH - 1.0
+            x1i = (2.0 * (ix + iw)) / WIDTH - 1.0
+            y0i = 1.0 - 2.0 * (icon_y / HEIGHT)
+            y1i = 1.0 - 2.0 * ((icon_y + ih) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            icon_verts = np.asarray([
+                x0i, y0i, 0.0, 1.0, r, g, b, depth,
+                x0i, y1i, 0.0, 0.0, r, g, b, depth,
+                x1i, y0i, 1.0, 1.0, r, g, b, depth,
+                x1i, y0i, 1.0, 1.0, r, g, b, depth,
+                x0i, y1i, 0.0, 0.0, r, g, b, depth,
+                x1i, y1i, 1.0, 0.0, r, g, b, depth,
+            ], dtype=np.float32).reshape((-1, 8))
+            renderer.draw_arrays(icon_verts, knife_icon_tex, use_tex=True)
+
+        # Hint under minimap
+        if hint_tex_id is not None:
+            pad = 10
+            ix = pad
+            iy = pad + (MAP_H * 6) + 4  # under minimap
+            x0h = (2.0 * ix) / WIDTH - 1.0
+            x1h = (2.0 * (ix + hint_tex_w)) / WIDTH - 1.0
+            y0h = 1.0 - 2.0 * (iy / HEIGHT)
+            y1h = 1.0 - 2.0 * ((iy + hint_tex_h) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            hint_verts = np.asarray([
+                x0h, y0h, 0.0, 1.0, r, g, b, depth,
+                x0h, y1h, 0.0, 0.0, r, g, b, depth,
+                x1h, y0h, 1.0, 1.0, r, g, b, depth,
+                x1h, y0h, 1.0, 1.0, r, g, b, depth,
+                x0h, y1h, 0.0, 0.0, r, g, b, depth,
+                x1h, y1h, 1.0, 0.0, r, g, b, depth,
+            ], dtype=np.float32).reshape((-1, 8))
+            renderer.draw_arrays(hint_verts, hint_tex_id, use_tex=True)
 
     # Health bar (øverst, midtstilt)
         # bakgrunn + fyll som avhenger av HP
@@ -2834,6 +3490,9 @@ def main() -> None:
             ).reshape((-1, 8))
             renderer.draw_arrays(go_verts, go_tex_id, use_tex=True)
 
+        # Re-enable depth test for next frame's world rendering
+        gl.glEnable(gl.GL_DEPTH_TEST)
+
         pygame.display.flip()
 
         # Wave progression (when all enemies are dead)
@@ -2865,6 +3524,30 @@ def main() -> None:
             gl.glDeleteTextures([ammo_tex_id])
         if go_tex_id is not None:
             gl.glDeleteTextures([go_tex_id])
+        if pistol_icon_tex is not None:
+            gl.glDeleteTextures([pistol_icon_tex])
+        if knife_icon_tex is not None:
+            gl.glDeleteTextures([knife_icon_tex])
+        if hint_tex_id is not None:
+            gl.glDeleteTextures([hint_tex_id])
+        if pistol_vm_tex is not None:
+            gl.glDeleteTextures([pistol_vm_tex])
+        if knife_vm_tex is not None:
+            gl.glDeleteTextures([knife_vm_tex])
+        if muzzle_tex is not None:
+            gl.glDeleteTextures([muzzle_tex])
+        if slash_tex is not None:
+            gl.glDeleteTextures([slash_tex])
+        if pistol_anim_frames:
+            try:
+                gl.glDeleteTextures(pistol_anim_frames)
+            except Exception:
+                pass
+        if knife_anim_frames:
+            try:
+                gl.glDeleteTextures(knife_anim_frames)
+            except Exception:
+                pass
     except Exception:
         pass
 

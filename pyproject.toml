@@ -25,6 +25,7 @@ dependencies = [
   "pygame>=2.6.0",
   "numpy>=1.26",
   "pyopengl>=3.1.10",
+  "pillow>=10.4.0",
 ]
 
 
