@@ -2242,9 +2242,9 @@ def handle_input(dt: float) -> None:
     global player_x, player_y, dir_x, dir_y, plane_x, plane_y
     keys = pygame.key.get_pressed()
     rot = 0.0
-    if keys[pygame.K_LEFT] or keys[pygame.K_q]:
+    if keys[pygame.K_LEFT]:
         rot -= ROT_SPEED * dt
-    if keys[pygame.K_RIGHT] or keys[pygame.K_e]:
+    if keys[pygame.K_RIGHT]:
         rot += ROT_SPEED * dt
     if rot != 0.0:
         cosr, sinr = math.cos(rot), math.sin(rot)
