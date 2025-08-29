@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import math
 import sys
+import random
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -132,6 +133,15 @@ class Bullet:
         self.age += dt
         self.height_param = min(0.65, self.height_param + 0.35 * dt)
 
+
+class AmmoBox:
+    def __init__(self, x: float, y: float, amount: int) -> None:
+        self.x = x
+        self.y = y
+        self.amount = amount
+        self.alive = True
+        self.radius = 0.3
+        self.height_param = 0.35
 
 # ---------- Fiende ----------
 # Enemy types
@@ -274,6 +284,18 @@ def make_bullet_texture() -> pygame.Surface:
     pygame.draw.circle(surf, (255, 240, 150, 220), (16, 16), 8)
     pygame.draw.circle(surf, (255, 255, 255, 255), (13, 13), 3)
     return surf
+
+
+def make_ammo_box_texture() -> pygame.Surface:
+    s = pygame.Surface((64, 64), pygame.SRCALPHA)
+    # box
+    pygame.draw.rect(s, (70, 120, 70, 255), (6, 10, 52, 44), border_radius=6)
+    # plus sign
+    pygame.draw.rect(s, (230, 240, 230, 255), (30, 18, 4, 28))
+    pygame.draw.rect(s, (230, 240, 230, 255), (22, 30, 20, 4))
+    # subtle border
+    pygame.draw.rect(s, (40, 70, 40, 255), (6, 10, 52, 44), width=2, border_radius=6)
+    return s
 
 
 # ---------- OpenGL utils ----------
@@ -551,8 +573,9 @@ class GLRenderer:
         self.textures[3] = _load(files[3], 512)
         self.textures[4] = _load(files[4], 512)
 
-        # Sprite (kule) – behold prosedyre
+        # Sprite textures
         self.textures[99] = surface_to_texture(make_bullet_texture())
+        self.textures[150] = surface_to_texture(make_ammo_box_texture())
 
         # Enemy sprites (ID 200, 201, 202): prøv fil, ellers prosedural placeholder
         try:
@@ -925,6 +948,96 @@ def build_sprites_batch(bullets: list[Bullet]) -> np.ndarray:
             ]
         )
 
+    if not verts:
+        return np.zeros((0, 8), dtype=np.float32)
+    return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
+
+
+def build_pickups_batch(pickups: list["AmmoBox"]) -> np.ndarray:
+    verts: list[float] = []
+    for p in pickups:
+        if not p.alive:
+            continue
+        spr_x = p.x - player_x
+        spr_y = p.y - player_y
+        inv_det = 1.0 / (plane_x * dir_y - dir_x * plane_y + 1e-9)
+        trans_x = inv_det * (dir_y * spr_x - dir_x * spr_y)
+        trans_y = inv_det * (-plane_y * spr_x + plane_x * spr_y)
+        if trans_y <= 0:
+            continue
+        sprite_screen_x = int((WIDTH / 2) * (1 + trans_x / trans_y))
+        # Render pickups smaller (30% of default sprite size)
+        sprite_h = max(1, int(abs(HEIGHT / trans_y) * 0.3))
+        sprite_w = sprite_h
+        v_shift = int((0.5 - p.height_param) * sprite_h)
+        draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_start_x = -sprite_w // 2 + sprite_screen_x
+        draw_end_x = draw_start_x + sprite_w
+        if draw_end_x < 0 or draw_start_x >= WIDTH:
+            continue
+        draw_start_x = max(0, draw_start_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
+
+        x0 = (2.0 * draw_start_x) / WIDTH - 1.0
+        x1 = (2.0 * (draw_end_x + 1)) / WIDTH - 1.0
+        y0 = y_ndc(draw_start_y)
+        y1 = y_ndc(draw_end_y)
+        depth = clamp01(trans_y / FAR_PLANE)
+        r = g = b = 1.0
+        u0, v0, u1, v1 = 0.0, 0.0, 1.0, 1.0
+        verts.extend(
+            [
+                x0,
+                y0,
+                u0,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y0,
+                u1,
+                v0,
+                r,
+                g,
+                b,
+                depth,
+                x0,
+                y1,
+                u0,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+                x1,
+                y1,
+                u1,
+                v1,
+                r,
+                g,
+                b,
+                depth,
+            ]
+        )
     if not verts:
         return np.zeros((0, 8), dtype=np.float32)
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
@@ -1547,6 +1660,15 @@ def main() -> None:
     firing = False
     recoil_t = 0.0
 
+    # Ammo system
+    ammo: int = 10
+    pickups: list[AmmoBox] = []
+    # ammo HUD cache
+    ammo_prev_text: str = ""
+    ammo_tex_id: int | None = None
+    ammo_tex_w = 0
+    ammo_tex_h = 0
+
     # Player health
     player_hp: float = float(PLAYER_MAX_HP)
 
@@ -1656,7 +1778,7 @@ def main() -> None:
                     print("Mouse grab:", grab)
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                if event.key == pygame.K_SPACE:
+                if event.key == pygame.K_SPACE and ammo > 0:
                     bx = player_x + dir_x * 0.4
                     by = player_y + dir_y * 0.4
                     bvx = dir_x * 10.0
@@ -1664,14 +1786,17 @@ def main() -> None:
                     bullets.append(Bullet(bx, by, bvx, bvy))
                     firing = True
                     recoil_t = 0.0
+                    ammo -= 1
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                bx = player_x + dir_x * 0.4
-                by = player_y + dir_y * 0.4
-                bvx = dir_x * 10.0
-                bvy = dir_y * 10.0
-                bullets.append(Bullet(bx, by, bvx, bvy))
-                firing = True
-                recoil_t = 0.0
+                if ammo > 0:
+                    bx = player_x + dir_x * 0.4
+                    by = player_y + dir_y * 0.4
+                    bvx = dir_x * 10.0
+                    bvy = dir_y * 10.0
+                    bullets.append(Bullet(bx, by, bvx, bvy))
+                    firing = True
+                    recoil_t = 0.0
+                    ammo -= 1
 
         handle_input(dt)
 
@@ -1691,6 +1816,17 @@ def main() -> None:
                         score += ENEMY_SCORE.get(e.enemy_type, 100)
                         # invalider score-tekst slik at den oppdateres
                         score_prev_text = ""
+                        # 1 av 5 dropper ammo (20%)
+                        if random.random() < 0.2:
+                            # Harder enemies drop more ammo on average
+                            if e.enemy_type == ENEMY_BLACK_HELMET:
+                                lo, hi = 4, 6
+                            elif e.enemy_type == ENEMY_GREY_HELMET:
+                                lo, hi = 3, 5
+                            else:
+                                lo, hi = 2, 4
+                            amt = random.randint(lo, hi)
+                            pickups.append(AmmoBox(e.x, e.y, amt))
                     b.alive = False  # kula forbrukes
                     break
         bullets = [b for b in bullets if b.alive]
@@ -1698,6 +1834,17 @@ def main() -> None:
         # Oppdater fiender
         for e in enemies:
             e.update(dt)
+
+        # Plukk opp ammo ved nærkontakt
+        for p in pickups:
+            if not p.alive:
+                continue
+            dx = p.x - player_x
+            dy = p.y - player_y
+            if dx * dx + dy * dy <= (0.5 * 0.5):
+                ammo += p.amount
+                p.alive = False
+        pickups = [p for p in pickups if p.alive]
 
         # Spiller tar kontakt-skade om fiender er nærme
         dps_total = 0.0
@@ -1747,6 +1894,11 @@ def main() -> None:
         if spr.size:
             renderer.draw_arrays(spr, renderer.textures[99], use_tex=True)
 
+        # Pickups (ammo boxes)
+        pb = build_pickups_batch(pickups)
+        if pb.size:
+            renderer.draw_arrays(pb, renderer.textures[150], use_tex=True)
+
         # Enemies (billboards) - render by type for different textures
         for enemy_type in [ENEMY_BLACK_HELMET, ENEMY_GREY_HELMET, ENEMY_GREY_NO_HELMET]:
             enemies_batch = build_enemies_batch_by_type(enemies, enemy_type)
@@ -1770,7 +1922,7 @@ def main() -> None:
         mm = build_minimap_quads(enemies)
         renderer.draw_arrays(mm, renderer.white_tex, use_tex=False)
 
-        # Health bar (øverst, midtstilt)
+    # Health bar (øverst, midtstilt)
         # bakgrunn + fyll som avhenger av HP
         ratio = 0.0 if PLAYER_MAX_HP <= 0 else float(player_hp) / float(PLAYER_MAX_HP)
         ratio = max(0.0, min(1.0, ratio))
@@ -1943,6 +2095,44 @@ def main() -> None:
                 dtype=np.float32,
             ).reshape((-1, 8))
             renderer.draw_arrays(hp_verts, hp_tex_id, use_tex=True)
+
+        # Ammo-tekst (ved siden av HP-bar)
+        ammo_text = f"Ammo: {ammo}"
+        if ammo_text != ammo_prev_text:
+            if ammo_tex_id is not None:
+                try:
+                    gl.glDeleteTextures([ammo_tex_id])
+                except Exception:
+                    pass
+                ammo_tex_id = None
+            a_surf = font.render(ammo_text, True, (255, 255, 255))
+            ammo_tex_w, ammo_tex_h = a_surf.get_width(), a_surf.get_height()
+            ammo_tex_id = surface_to_texture(a_surf)
+            ammo_prev_text = ammo_text
+
+        if ammo_tex_id is not None:
+            pad_x = 10
+            # place to the right of HP bar
+            x_px2 = HALF_W + 300 // 2 + pad_x
+            y_px2 = pad_y
+            x0a = (2.0 * x_px2) / WIDTH - 1.0
+            x1a = (2.0 * (x_px2 + ammo_tex_w)) / WIDTH - 1.0
+            y0a = 1.0 - 2.0 * (y_px2 / HEIGHT)
+            y1a = 1.0 - 2.0 * ((y_px2 + ammo_tex_h) / HEIGHT)
+            r = g = b = 1.0
+            depth = 0.0
+            ammo_verts = np.asarray(
+                [
+                    x0a, y0a, 0.0, 1.0, r, g, b, depth,
+                    x0a, y1a, 0.0, 0.0, r, g, b, depth,
+                    x1a, y0a, 1.0, 1.0, r, g, b, depth,
+                    x1a, y0a, 1.0, 1.0, r, g, b, depth,
+                    x0a, y1a, 0.0, 0.0, r, g, b, depth,
+                    x1a, y1a, 1.0, 0.0, r, g, b, depth,
+                ],
+                dtype=np.float32,
+            ).reshape((-1, 8))
+            renderer.draw_arrays(ammo_verts, ammo_tex_id, use_tex=True)
 
         # Score-tekst (øverst til høyre)
         score_text = f"Score: {score}"
@@ -2123,6 +2313,8 @@ def main() -> None:
             gl.glDeleteTextures([score_tex_id])
         if hp_tex_id is not None:
             gl.glDeleteTextures([hp_tex_id])
+        if ammo_tex_id is not None:
+            gl.glDeleteTextures([ammo_tex_id])
         if go_tex_id is not None:
             gl.glDeleteTextures([go_tex_id])
     except Exception:
