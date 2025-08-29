@@ -358,6 +358,30 @@ class PickupPop:
         self.age += dt
         if self.age >= self.dur:
             self.alive = False
+        self.age += dt
+        if self.age >= self.dur:
+            self.alive = False
+
+class EnemyDeathFX:
+    """Simple death animation for enemies: shrink and dim over short duration."""
+    def __init__(self, x: float, y: float, enemy_type: int) -> None:
+        self.x = x
+        self.y = y
+        self.enemy_type = enemy_type
+        self.age = 0.0
+        self.dur = 0.45
+        self.height_param = 0.5
+        self.alive = True
+
+    def update(self, dt: float) -> None:
+        if not self.alive:
+            return
+        self.age += dt
+        # sink slightly as it collapses
+        t = max(0.0, min(1.0, self.age / self.dur))
+        self.height_param = 0.5 - 0.08 * t
+        if self.age >= self.dur:
+            self.alive = False
 
 # ---------- Fiende ----------
 # Enemy types
@@ -1409,6 +1433,64 @@ def build_pickup_pops_batch(pops: list["PickupPop"]) -> np.ndarray:
     return np.asarray(verts, dtype=np.float32).reshape((-1, 8))
 
 
+def build_enemy_deaths_batch(fxs: list["EnemyDeathFX"]) -> dict[int, np.ndarray]:
+    """Build batches for enemy death effects per enemy type (to reuse same textures 200/201/202).
+    Animation: scale from 100% to ~35%, fade color to dark.
+    """
+    out: dict[int, list[float]] = {200: [], 201: [], 202: []}
+    for fx in fxs:
+        if not fx.alive:
+            continue
+        spr_x = fx.x - player_x
+        spr_y = fx.y - player_y
+        inv_det = 1.0 / (plane_x * dir_y - dir_x * plane_y + 1e-9)
+        trans_x = inv_det * (dir_y * spr_x - dir_x * spr_y)
+        trans_y = inv_det * (-plane_y * spr_x + plane_x * spr_y)
+        if trans_y <= 0:
+            continue
+        sprite_screen_x = int((WIDTH / 2) * (1 + trans_x / trans_y))
+        base_h = abs(int(HEIGHT / trans_y))
+        t = max(0.0, min(1.0, fx.age / fx.dur))
+        scale = 1.0 - 0.65 * t  # shrink to ~35%
+        sprite_h = max(1, int(base_h * scale))
+        sprite_w = sprite_h
+        v_shift = int((0.5 - fx.height_param) * sprite_h)
+
+        draw_start_y = max(0, -sprite_h // 2 + HALF_H + v_shift)
+        draw_end_y = min(HEIGHT - 1, draw_start_y + sprite_h)
+        draw_start_x = -sprite_w // 2 + sprite_screen_x
+        draw_end_x = draw_start_x + sprite_w
+        if draw_end_x < 0 or draw_start_x >= WIDTH:
+            continue
+        draw_start_x = max(0, draw_start_x)
+        draw_end_x = min(WIDTH - 1, draw_end_x)
+
+        x0 = (2.0 * draw_start_x) / WIDTH - 1.0
+        x1 = (2.0 * (draw_end_x + 1)) / WIDTH - 1.0
+        y0 = y_ndc(draw_start_y)
+        y1 = y_ndc(draw_end_y)
+        depth = clamp01(trans_y / FAR_PLANE)
+
+        # Fade to dark quickly
+        fade = 1.0 - 0.85 * t
+        r = g = b = fade
+        # flip V like enemies
+        u0, v0, u1, v1 = 0.0, 1.0, 1.0, 0.0
+
+        tid = 200 + fx.enemy_type
+        out[tid].extend([
+            x0, y0, u0, v0, r, g, b, depth,
+            x0, y1, u0, v1, r, g, b, depth,
+            x1, y0, u1, v0, r, g, b, depth,
+            x1, y0, u1, v0, r, g, b, depth,
+            x0, y1, u0, v1, r, g, b, depth,
+            x1, y1, u1, v1, r, g, b, depth,
+        ])
+
+    # convert lists to arrays
+    return {tid: (np.asarray(v, dtype=np.float32).reshape((-1, 8)) if v else np.zeros((0, 8), dtype=np.float32)) for tid, v in out.items()}
+
+
 def build_enemies_batch_by_type(enemies: list["Enemy"], enemy_type: int) -> np.ndarray:
     """Build batch for enemies of a specific type"""
     verts: list[float] = []
@@ -2140,6 +2222,7 @@ def main() -> None:
     pygame.mouse.set_visible(True)
 
     running = True
+    death_fx: list[EnemyDeathFX] = []
     while running:
         dt = clock.tick(FPS) / 1000.0
         for event in pygame.event.get():
@@ -2207,6 +2290,8 @@ def main() -> None:
                                 death_snd.play()
                         except Exception:
                             pass
+                        # spawn death FX
+                        death_fx.append(EnemyDeathFX(e.x, e.y, e.enemy_type))
                         # 1 av 5 dropper ammo (20%)
                         if random.random() < 0.2:
                             # Harder enemies drop more ammo on average
@@ -2230,6 +2315,10 @@ def main() -> None:
         # Oppdater fiender
         for e in enemies:
             e.update(dt)
+        # Oppdater death FX
+        for fx in death_fx:
+            fx.update(dt)
+        death_fx = [fx for fx in death_fx if fx.alive]
 
     # Plukk opp ammo ved nærkontakt
         for p in pickups:
@@ -2358,6 +2447,12 @@ def main() -> None:
             if enemies_batch.size:
                 texture_id = 200 + enemy_type  # 200, 201, 202
                 renderer.draw_arrays(enemies_batch, renderer.textures[texture_id], use_tex=True)
+
+        # Enemy death FX (render using the same textures 200/201/202, smaller and fading)
+        dfxb = build_enemy_deaths_batch(death_fx)
+        for tid, arr in dfxb.items():
+            if arr.size and tid in renderer.textures:
+                renderer.draw_arrays(arr, renderer.textures[tid], use_tex=True)
 
         # Crosshair
         cross = build_crosshair_quads(8, 2)
